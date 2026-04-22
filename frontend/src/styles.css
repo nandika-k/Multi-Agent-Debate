@@ -308,6 +308,131 @@ a {
   gap: 0.75rem;
 }
 
+.ribbon-banner {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+.ribbon-banner__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ribbon-banner__text {
+  position: absolute;
+  top: 23%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: "Yusei Magic", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(1rem, 3.2vw, 2rem);
+  letter-spacing: 0.04em;
+  color: var(--outline);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ===== Debate Stage (immersive running view) ===== */
+.app-shell--debate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.app-shell--debate .mascot--left {
+  top: 2rem;
+  left: 2rem;
+  bottom: auto;
+  transform: none;
+}
+
+.app-shell--debate .mascot--right {
+  bottom: 2rem;
+  right: 2rem;
+  top: auto;
+  transform: none;
+}
+
+.debate-stage {
+  position: relative;
+  z-index: 5;
+  width: min(62%, 780px);
+  display: grid;
+  gap: 2rem;
+}
+
+.debate-banner {
+  width: 100%;
+}
+
+.debate-bubble {
+  background: #ffffff;
+  border: 3px solid var(--outline);
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  box-shadow: var(--shadow-panel);
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+
+.debate-bubble p {
+  margin: 0 0 0.85rem;
+}
+
+.debate-bubble p:last-of-type {
+  margin-bottom: 0;
+}
+
+.debate-bubble--pro {
+  border-color: var(--red);
+}
+
+.debate-bubble--con {
+  border-color: var(--blue);
+}
+
+.debate-bubble-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.debate-cite {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.debate-cite--pro {
+  color: var(--red);
+  background: rgba(192, 25, 12, 0.08);
+}
+
+.debate-cite--con {
+  color: var(--blue);
+  background: rgba(21, 101, 192, 0.08);
+}
+
+.debate-wait {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
 /* ===== Status Metrics ===== */
 .status-metrics {
   display: flex;
@@ -365,51 +490,52 @@ a {
   flex: 1;
   position: relative;
   background: var(--cream);
-  border: 1.5px solid var(--outline-bubble);
+  border: 3px solid var(--outline);
   border-radius: 18px;
   padding: 1rem 1.25rem;
+  box-shadow: 4px 4px 0 var(--outline);
 }
 
 /* Con: pointer points left */
 .speech-bubble--con::before {
   content: "";
   position: absolute;
-  left: -13px;
+  left: -16px;
   top: 20px;
-  border-top: 9px solid transparent;
-  border-bottom: 9px solid transparent;
-  border-right: 13px solid var(--outline-bubble);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 16px solid var(--outline);
 }
 
 .speech-bubble--con::after {
   content: "";
   position: absolute;
-  left: -10px;
-  top: 21.5px;
-  border-top: 7.5px solid transparent;
-  border-bottom: 7.5px solid transparent;
-  border-right: 10px solid var(--cream);
+  left: -11px;
+  top: 22px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 11px solid var(--cream);
 }
 
 /* Pro: pointer points right */
 .speech-bubble--pro::before {
   content: "";
   position: absolute;
-  right: -13px;
+  right: -16px;
   top: 20px;
-  border-top: 9px solid transparent;
-  border-bottom: 9px solid transparent;
-  border-left: 13px solid var(--outline-bubble);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 16px solid var(--outline);
 }
 
 .speech-bubble--pro::after {
   content: "";
   position: absolute;
-  right: -10px;
-  top: 21.5px;
-  border-top: 7.5px solid transparent;
-  border-bottom: 7.5px solid transparent;
-  border-left: 10px solid var(--cream);
+  right: -11px;
+  top: 22px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 11px solid var(--cream);
 }
 
 .speech-bubble header {
@@ -498,6 +624,26 @@ a {
 /* ===== Notes Panel ===== */
 .notes-panel {
   /* uses .panel */
+}
+
+/* ===== Side Panel Group (right column wrapper) ===== */
+.side-panel-group {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.side-panel-group > .panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.side-panel-group > .panel + .panel {
+  border-top: 1.5px solid var(--outline);
+  padding-top: 1.5rem;
 }
 
 .notes-list {

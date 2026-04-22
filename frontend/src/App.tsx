@@ -12,10 +12,10 @@ import { BlobMascot } from "./components/BlobMascot";
 import { EventTimeline } from "./components/EventTimeline";
 import { ResolutionEditor } from "./components/ResolutionEditor";
 import { SourceRail } from "./components/SourceRail";
-import { StatusBanner } from "./components/StatusBanner";
+import { RibbonBanner } from "./components/StatusBanner";
 import { TopicComposer } from "./components/TopicComposer";
-import { TranscriptPanel } from "./components/TranscriptPanel";
 import { WinnerPanel } from "./components/WinnerPanel";
+import { formatRoundSplashTitle } from "./formatters";
 import type {
   AppView,
   DebateDetailResponse,
@@ -201,6 +201,61 @@ export default function App() {
     );
   }
 
+  if (view === "running" && activeDebate) {
+    const latestEntry = debateDetail?.transcript?.at(-1) ?? null;
+    const currentRound = latestEntry?.round_type ?? lastEvent?.round_type ?? null;
+    const bannerText = currentRound
+      ? formatRoundSplashTitle(currentRound)
+      : activeDebate.status === "researching"
+        ? "RESEARCHING EVIDENCE"
+        : "DEBATE IN PROGRESS";
+
+    return (
+      <div className="app-shell app-shell--debate">
+        <span aria-hidden className="bookmark" />
+        <BlobMascot className="mascot mascot--left" side="con" size={140} />
+        <BlobMascot className="mascot mascot--right" side="pro" size={140} />
+
+        <div className="debate-stage">
+          <div className="debate-banner">
+            <RibbonBanner text={bannerText} />
+          </div>
+
+          {latestEntry ? (
+            <article className={`debate-bubble debate-bubble--${latestEntry.side}`}>
+              {latestEntry.text.split("\n\n").map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+              {latestEntry.citations.length > 0 && (
+                <footer className="debate-bubble-footer">
+                  {latestEntry.citations.map((cite, i) => (
+                    <a
+                      className={`debate-cite debate-cite--${latestEntry.side}`}
+                      href={cite}
+                      key={i}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      [{i + 1}]
+                    </a>
+                  ))}
+                </footer>
+              )}
+            </article>
+          ) : (
+            <p className="debate-wait">
+              {activeDebate.status === "researching"
+                ? "Gathering evidence from the web…"
+                : "Waiting for the first round to begin…"}
+            </p>
+          )}
+
+          {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       {/* Gold bookmark decoration */}
@@ -228,28 +283,18 @@ export default function App() {
               />
             ) : null}
 
-            {activeDebate && (view === "running" || view === "completed") ? (
-              <>
-                <StatusBanner
-                  currentEvent={lastEvent}
-                  debate={activeDebate}
-                  streamState={streamState}
-                />
-                <TranscriptPanel transcript={debateDetail?.transcript ?? []} />
-                {view === "completed" ? (
-                  <WinnerPanel
-                    busyAction={busyAction}
-                    debate={activeDebate}
-                    onPickWinner={handlePickWinner}
-                  />
-                ) : null}
-              </>
+            {activeDebate && view === "completed" ? (
+              <WinnerPanel
+                busyAction={busyAction}
+                debate={activeDebate}
+                onPickWinner={handlePickWinner}
+              />
             ) : null}
           </section>
 
           <aside className="side-column">
             {activeDebate && debateDetail ? (
-              <>
+              <div className="panel side-panel-group">
                 <SourceRail
                   loadingSourceId={loadingSourceId}
                   packets={debateDetail.packets}
@@ -259,7 +304,7 @@ export default function App() {
                   onSelectSource={handleSelectSource}
                 />
                 <EventTimeline events={debateDetail.events} />
-              </>
+              </div>
             ) : (
               <section className="panel notes-panel">
                 <div className="panel-heading">

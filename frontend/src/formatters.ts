@@ -8,6 +8,18 @@ const ROUND_LABELS: Record<RoundType, string> = {
   closing: "Closing statement",
 };
 
+const ROUND_NUMBERS: Record<RoundType, number> = {
+  opening: 1,
+  crossfire_questions: 2,
+  crossfire_answers: 3,
+  rebuttal: 4,
+  closing: 5,
+};
+
+export function formatRoundSplashTitle(roundType: RoundType): string {
+  return `ROUND ${ROUND_NUMBERS[roundType]}:  ${ROUND_LABELS[roundType].toUpperCase()}`;
+}
+
 const STATUS_LABELS: Record<DebateStatus, string> = {
   awaiting_confirmation: "Awaiting resolution confirmation",
   ready: "Ready to start",
