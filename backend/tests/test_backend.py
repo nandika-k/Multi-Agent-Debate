@@ -129,16 +129,16 @@ def wait_for_completion(client: TestClient, debate_id: str) -> dict:
 
 def test_settings_runtime_validation_requires_api_key_when_live_generation_enabled(monkeypatch):
     monkeypatch.setattr(settings, "enable_live_generation", True)
-    monkeypatch.setattr(settings, "openai_api_key", None)
+    monkeypatch.setattr(settings, "groq_api_key", None)
     with pytest.raises(RuntimeError):
         settings.validate_runtime()
 
 
-def test_settings_accept_standard_openai_env_var(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.delenv("DEBATE_OPENAI_API_KEY", raising=False)
+def test_settings_accept_standard_anthropic_env_var(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.delenv("DEBATE_GROQ_API_KEY", raising=False)
 
-    assert settings.__class__().openai_api_key == "test-key"
+    assert settings.__class__().groq_api_key == "test-key"
 
 
 def test_repository_source_membership_lookup(workspace_tmp_path, monkeypatch):

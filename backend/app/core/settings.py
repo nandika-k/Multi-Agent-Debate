@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     app_name: str = "Multi-Agent Debate Backend"
     data_dir: Path = Path(__file__).resolve().parents[2] / "data"
     db_filename: str = "debates.db"
-    openai_api_key: str | None = Field(
+    groq_api_key: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("OPENAI_API_KEY", "DEBATE_OPENAI_API_KEY"),
+        validation_alias=AliasChoices("GROQ_API_KEY", "DEBATE_GROQ_API_KEY"),
     )
-    openai_model: str = "gpt-5.4-mini"
+    groq_model: str = "llama-3.3-70b-versatile"
     enable_live_generation: bool = True
     enable_live_retrieval: bool = True
     generation_retry_limit: int = 3
@@ -67,9 +67,9 @@ class Settings(BaseSettings):
         }
 
     def validate_runtime(self) -> None:
-        if self.enable_live_generation and not self.openai_api_key:
+        if self.enable_live_generation and not self.groq_api_key:
             raise RuntimeError(
-                "OPENAI_API_KEY (or DEBATE_OPENAI_API_KEY) is required when live generation is enabled"
+                "GROQ_API_KEY (or DEBATE_GROQ_API_KEY) is required when live generation is enabled"
             )
 
 

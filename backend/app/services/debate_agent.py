@@ -1,13 +1,12 @@
-﻿from app.core.settings import settings
+import json
+
+from groq import Groq
+
+from app.core.settings import settings
 from app.models.common import DebateSide, RoundType
 from app.models.generation import GeneratedRound, SourceUsage
 from app.models.source import SourceCard, EvidencePacket
 from app.models.transcript import TranscriptEntry
-
-try:
-    from openai import OpenAI
-except ImportError:  # pragma: no cover - handled in runtime dependency setup
-    OpenAI = None
 
 
 def get_character_limits() -> dict[RoundType, int]:
@@ -32,46 +31,39 @@ class DebateAgent:
             return self._stub_round(side, round_type, resolution, packet_sources)
 
         client = self._get_client()
-        response = client.responses.parse(
-            model=settings.openai_model,
-            input=[
-                {
-                    "role": "system",
-                    "content": [{"type": "input_text", "text": self._system_prompt(round_type)}],
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": self._user_prompt(
-                                side=side,
-                                round_type=round_type,
-                                resolution=resolution,
-                                packet=packet,
-                                packet_sources=packet_sources,
-                                transcript=transcript,
-                                validation_feedback=validation_feedback,
-                            ),
-                        }
-                    ],
-                },
+        response = client.chat.completions.create(
+            model=settings.groq_model,
+            messages=[
+                {"role": "system", "content": self._system_prompt(round_type)},
+                {"role": "user", "content": self._user_prompt(
+                    side=side,
+                    round_type=round_type,
+                    resolution=resolution,
+                    packet=packet,
+                    packet_sources=packet_sources,
+                    transcript=transcript,
+                    validation_feedback=validation_feedback,
+                )},
             ],
-            text_format=GeneratedRound,
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "generate_round",
+                    "description": "Output the structured debate round.",
+                    "parameters": GeneratedRound.model_json_schema(),
+                },
+            }],
+            tool_choice={"type": "function", "function": {"name": "generate_round"}},
         )
-        parsed = response.output_parsed
-        if parsed is None:
-            raise ValueError("OpenAI returned no structured round output")
-        return parsed
+        args = response.choices[0].message.tool_calls[0].function.arguments
+        return GeneratedRound.model_validate_json(args)
 
-    def _get_client(self):
+    def _get_client(self) -> Groq:
         if self.client is not None:
             return self.client
-        if OpenAI is None:
-            raise RuntimeError("openai package is required when live generation is enabled")
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is not configured")
-        self.client = OpenAI(api_key=settings.openai_api_key)
+        if not settings.groq_api_key:
+            raise ValueError("GROQ_API_KEY is not configured")
+        self.client = Groq(api_key=settings.groq_api_key)
         return self.client
 
     def _stub_round(
@@ -114,7 +106,7 @@ class DebateAgent:
             "You are one side of a formal debate. "
             "Use only the provided evidence packet for factual claims. "
             "Never invent facts, studies, quotes, dates, or institutions. "
-            "Return structured JSON with fields: text, citations, claim_notes, source_usage. "
+            "Call the generate_round function with fields: text, citations, claim_notes, source_usage. "
             "Every factual claim in text must include inline citations like [S1] or [S1][S2]. "
             "The citations field must list only source IDs actually used inline. "
             f"Round-specific rule: {round_rules[round_type]}"
@@ -157,5 +149,5 @@ class DebateAgent:
             f"Private evidence packet:\n{source_packet}\n\n"
             f"Public transcript so far:\n{transcript_text}\n"
             f"{retry_note}\n"
-            "Return only the structured output. Keep it debate-style, concise, and citation-disciplined."
+            "Call generate_round with debate-style, concise, citation-disciplined output."
         )
