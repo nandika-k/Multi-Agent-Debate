@@ -37,31 +37,35 @@ export function ResolutionEditor({
   const canStart = debate.status === "ready";
 
   return (
-    <section className="panel resolution-panel">
-      <div className="panel-heading">
-        <span className="eyebrow">Resolution workshop</span>
-        <h2>Lock the framing before the agents begin.</h2>
-        <p>{formatStatus(debate.status)}</p>
+    <section className="composer-panel">
+      <h1 className="pick-topic-heading" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)" }}>
+        Lock the Resolution
+      </h1>
+
+      <div className="scroll-banner" style={{ maxWidth: "680px" }}>
+        <label className="field">
+          <span>Final resolution — edit before confirming</span>
+          <textarea
+            rows={6}
+            value={resolution}
+            onChange={(event) => onResolutionChange(event.target.value)}
+          />
+        </label>
+
+        {scopeItems.length > 0 ? (
+          <div className="scope-grid" aria-label="Debate scope">
+            {scopeItems.map((item) => (
+              <span className="scope-pill" key={item}>
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <label className="field">
-        <span>Final resolution</span>
-        <textarea
-          value={resolution}
-          rows={6}
-          onChange={(event) => onResolutionChange(event.target.value)}
-        />
-      </label>
-
-      {scopeItems.length > 0 ? (
-        <div className="scope-grid" aria-label="Debate scope">
-          {scopeItems.map((item) => (
-            <span className="scope-pill" key={item}>
-              {item}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <p style={{ color: "rgba(255,255,255,0.85)", margin: "0.75rem 0 0", fontSize: "0.9rem" }}>
+        {formatStatus(debate.status)}
+      </p>
 
       <div className="resolution-actions">
         <button

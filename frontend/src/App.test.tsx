@@ -148,8 +148,7 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
 
     await screen.findByDisplayValue(awaiting.resolution_draft);
 
@@ -174,8 +173,7 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
 
     const textarea = await screen.findByDisplayValue(awaiting.resolution_draft);
     await user.clear(textarea);
@@ -213,12 +211,11 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
     await user.click(await screen.findByRole("button", { name: /confirm resolution/i }));
     await user.click(await screen.findByRole("button", { name: /start debate/i }));
 
-    await screen.findByText(/Round 1: Opening statement/i);
+    await screen.findByLabelText(/debate in progress/i);
     expect(screen.getByText(/Researching evidence/i)).toBeInTheDocument();
     expect(MockEventSource.instances).toHaveLength(1);
   });
@@ -285,8 +282,7 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
     await user.click(await screen.findByRole("button", { name: /confirm resolution/i }));
     await user.click(await screen.findByRole("button", { name: /start debate/i }));
 
@@ -331,8 +327,7 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
     await user.click(await screen.findByRole("button", { name: /confirm resolution/i }));
     await user.click(await screen.findByRole("button", { name: /start debate/i }));
 
@@ -380,14 +375,13 @@ describe("App", () => {
     render(<App />);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText(/Should governments require watermarking/i), "Should AI judge debates?");
-    await user.click(screen.getByRole("button", { name: /draft resolution/i }));
+    await user.type(screen.getByPlaceholderText(/pick a topic/i), "Should AI judge debates?{enter}");
     await user.click(await screen.findByRole("button", { name: /confirm resolution/i }));
     await user.click(await screen.findByRole("button", { name: /start debate/i }));
     await user.click(await screen.findByRole("button", { name: /select pro/i }));
 
-    await screen.findByText(/Pro wins/i);
-    const selectedWinner = screen.getByRole("button", { name: /pro selected/i });
+    await screen.findByText(/wins the debate/i);
+    const selectedWinner = screen.getByRole("button", { name: /pro wins!/i });
     const otherWinner = screen.getByRole("button", { name: /select con/i });
 
     expect(fetchMock).toHaveBeenNthCalledWith(

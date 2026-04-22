@@ -1,3 +1,5 @@
+import type { FormEvent } from "react";
+
 interface TopicComposerProps {
   topic: string;
   busy: boolean;
@@ -6,31 +8,38 @@ interface TopicComposerProps {
 }
 
 export function TopicComposer({ topic, busy, onTopicChange, onSubmit }: TopicComposerProps) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!busy && topic.trim()) {
+      onSubmit();
+    }
+  }
+
   return (
-    <section className="panel composer-panel">
-      <div className="panel-heading">
-        <span className="eyebrow">Page 2 translated into product flow</span>
-        <h2>Pick a topic</h2>
-        <p>
-          Start with a question that has real tension. The backend will normalize it into a formal
-          resolution before the debate begins.
-        </p>
-      </div>
-      <label className="field">
-        <span>Debate topic</span>
-        <textarea
-          value={topic}
-          rows={4}
-          onChange={(event) => onTopicChange(event.target.value)}
-          placeholder="Should governments require watermarking for AI-generated media?"
+    <form className="composer-panel" onSubmit={handleSubmit}>
+      <div className="topic-scroll" aria-label="Topic entry banner">
+        <label className="topic-scroll__field topic-scroll__field--top">
+          <span className="visually-hidden">Debate topic</span>
+          <input
+            autoFocus
+            className="topic-scroll__input topic-scroll__input--top"
+            onChange={(event) => onTopicChange(event.target.value)}
+            placeholder="Pick a topic ..."
+            value={topic}
+          />
+        </label>
+
+        <img
+          alt=""
+          aria-hidden="true"
+          className="topic-scroll__art"
+          src="/images/topic-scroll.png"
         />
-      </label>
-      <div className="composer-actions">
-        <button className="primary-button" disabled={busy || !topic.trim()} onClick={onSubmit}>
-          {busy ? "Drafting resolution..." : "Draft resolution"}
-        </button>
-        <p className="support-copy">The first pass stays editable. You can refine the wording before launch.</p>
       </div>
-    </section>
+
+      <button className="visually-hidden" disabled={busy || !topic.trim()} type="submit">
+        Submit topic
+      </button>
+    </form>
   );
 }

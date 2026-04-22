@@ -25,7 +25,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
             .map((event) => (
               <li className="timeline-item" key={`${event.event_id ?? event.created_at}-${event.event_type}`}>
                 <div>
-                  <strong>{event.event_type.replaceAll("_", " ")}</strong>
+                  <strong>{event.event_type.replace(/_/g, " ")}</strong>
                   <p>{eventDescription(event)}</p>
                 </div>
                 <time>{formatTimestamp(event.created_at)}</time>

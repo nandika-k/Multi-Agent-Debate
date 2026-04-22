@@ -13,12 +13,8 @@ export function WinnerPanel({ debate, busyAction, onPickWinner }: WinnerPanelPro
   return (
     <section className="panel winner-panel">
       <div className="panel-heading">
-        <span className="eyebrow">Page 6 adapted into the finish state</span>
-        <h2>Choose the winner</h2>
-        <p>
-          The debate is finished. Pick the side that argued the case best, or review the transcript
-          and evidence again before deciding.
-        </p>
+        <h2>Choose the Winner</h2>
+        <p>Pick the side that argued the case best.</p>
       </div>
 
       <div className="winner-actions">
@@ -31,7 +27,7 @@ export function WinnerPanel({ debate, busyAction, onPickWinner }: WinnerPanelPro
               key={side}
               onClick={() => onPickWinner(side)}
             >
-              {isWinner ? `${formatSide(side)} selected` : `Select ${formatSide(side)}`}
+              {isWinner ? `${formatSide(side)} wins!` : `Select ${formatSide(side)}`}
             </button>
           );
         })}
@@ -39,7 +35,7 @@ export function WinnerPanel({ debate, busyAction, onPickWinner }: WinnerPanelPro
 
       {winner ? (
         <div className="winner-summary">
-          <strong>{formatSide(winner)} wins.</strong>
+          <strong>{formatSide(winner)} wins the debate.</strong>
           {debate.winning_animation_state ? (
             <p>
               Animation: {debate.winning_animation_state.animation} with{" "}

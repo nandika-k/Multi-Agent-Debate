@@ -8,6 +8,7 @@ import {
   pickWinner,
   startDebate,
 } from "./api";
+import { BlobMascot } from "./components/BlobMascot";
 import { EventTimeline } from "./components/EventTimeline";
 import { ResolutionEditor } from "./components/ResolutionEditor";
 import { SourceRail } from "./components/SourceRail";
@@ -15,7 +16,6 @@ import { StatusBanner } from "./components/StatusBanner";
 import { TopicComposer } from "./components/TopicComposer";
 import { TranscriptPanel } from "./components/TranscriptPanel";
 import { WinnerPanel } from "./components/WinnerPanel";
-import { formatStatus, formatTimestamp } from "./formatters";
 import type {
   AppView,
   DebateDetailResponse,
@@ -161,19 +161,16 @@ export default function App() {
     [debateId, sourceDetails],
   );
 
-  const handleRelevantStreamEvent = useCallback(
-    async () => {
-      if (!debateId) {
-        return;
-      }
-      try {
-        await refreshDebate(debateId);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to refresh live debate data.");
-      }
-    },
-    [debateId, refreshDebate],
-  );
+  const handleRelevantStreamEvent = useCallback(async () => {
+    if (!debateId) {
+      return;
+    }
+    try {
+      await refreshDebate(debateId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to refresh live debate data.");
+    }
+  }, [debateId, refreshDebate]);
 
   const { lastEvent, streamState } = useDebateStream({
     debateId,
@@ -188,105 +185,97 @@ export default function App() {
     return sourceDetails[selectedSourceId] ?? null;
   }, [selectedSourceId, sourceDetails]);
 
+  if (view === "topic") {
+    return (
+      <div className="app-shell app-shell--topic">
+        <div className="topic-shell">
+          {errorMessage ? <div className="error-banner topic-error-banner">{errorMessage}</div> : null}
+          <TopicComposer
+            busy={busyAction === "create"}
+            topic={topicInput}
+            onSubmit={handleCreateDebate}
+            onTopicChange={setTopicInput}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
-      <div className="background-orb background-orb--left" />
-      <div className="background-orb background-orb--right" />
+      {/* Gold bookmark decoration */}
+      <span aria-hidden className="bookmark" />
 
-      <header className="hero">
-        <div className="hero__copy">
-          <span className="eyebrow">Multi-Agent Debate</span>
-          <h1>Debate architecture with a Canva-style front stage.</h1>
-          <p>
-            A single-screen workspace for drafting a resolution, launching the run, tracking live
-            evidence, and naming the winner.
-          </p>
-        </div>
-        <div className="hero__meta panel">
-          <div>
-            <span className="meta-label">Current view</span>
-            <strong>{view}</strong>
-          </div>
-          <div>
-            <span className="meta-label">Status</span>
-            <strong>{activeDebate ? formatStatus(activeDebate.status) : "Not started"}</strong>
-          </div>
-          <div>
-            <span className="meta-label">Last update</span>
-            <strong>{activeDebate ? formatTimestamp(activeDebate.updated_at) : "Not yet"}</strong>
-          </div>
-        </div>
-      </header>
+      {/* Blob mascots */}
+      <BlobMascot className="mascot mascot--left" side="con" size={140} />
+      <BlobMascot className="mascot mascot--right" side="pro" size={140} />
 
-      {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
+      {/* Main content */}
+      <div className="content-wrapper">
+        {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
 
-      <main className="app-grid">
-        <section className="main-column">
-          {view === "topic" ? (
-            <TopicComposer
-              busy={busyAction === "create"}
-              topic={topicInput}
-              onSubmit={handleCreateDebate}
-              onTopicChange={setTopicInput}
-            />
-          ) : null}
-
-          {activeDebate && view === "resolution" ? (
-            <ResolutionEditor
-              busyAction={busyAction}
-              debate={activeDebate}
-              resolution={resolutionInput}
-              scope={debateDetail?.scope ?? null}
-              onConfirm={handleConfirmResolution}
-              onResolutionChange={setResolutionInput}
-              onStart={handleStartDebate}
-            />
-          ) : null}
-
-          {activeDebate && (view === "running" || view === "completed") ? (
-            <>
-              <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={debateDetail?.transcript ?? []} />
-              {view === "completed" ? (
-                <WinnerPanel
-                  busyAction={busyAction}
-                  debate={activeDebate}
-                  onPickWinner={handlePickWinner}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </section>
-
-        <aside className="side-column">
-          {activeDebate && debateDetail ? (
-            <>
-              <SourceRail
-                loadingSourceId={loadingSourceId}
-                packets={debateDetail.packets}
-                selectedSourceDetail={selectedSourceDetail}
-                selectedSourceId={selectedSourceId}
-                sources={debateDetail.sources}
-                onSelectSource={handleSelectSource}
+        <main className="app-grid">
+          <section className="main-column">
+            {activeDebate && view === "resolution" ? (
+              <ResolutionEditor
+                busyAction={busyAction}
+                debate={activeDebate}
+                resolution={resolutionInput}
+                scope={debateDetail?.scope ?? null}
+                onConfirm={handleConfirmResolution}
+                onResolutionChange={setResolutionInput}
+                onStart={handleStartDebate}
               />
-              <EventTimeline events={debateDetail.events} />
-            </>
-          ) : (
-            <section className="panel notes-panel">
-              <div className="panel-heading">
-                <span className="eyebrow">Important elements only</span>
-                <h2>What this UI keeps from the prototype</h2>
-              </div>
-              <ul className="notes-list">
-                <li>One strong headline card instead of separate slides.</li>
-                <li>Red and blue opposition cues for pro and con structure.</li>
-                <li>Large editorial panels for transcript, evidence, and result states.</li>
-                <li>Live backend state rather than placeholder copy.</li>
-              </ul>
-            </section>
-          )}
-        </aside>
-      </main>
+            ) : null}
+
+            {activeDebate && (view === "running" || view === "completed") ? (
+              <>
+                <StatusBanner
+                  currentEvent={lastEvent}
+                  debate={activeDebate}
+                  streamState={streamState}
+                />
+                <TranscriptPanel transcript={debateDetail?.transcript ?? []} />
+                {view === "completed" ? (
+                  <WinnerPanel
+                    busyAction={busyAction}
+                    debate={activeDebate}
+                    onPickWinner={handlePickWinner}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </section>
+
+          <aside className="side-column">
+            {activeDebate && debateDetail ? (
+              <>
+                <SourceRail
+                  loadingSourceId={loadingSourceId}
+                  packets={debateDetail.packets}
+                  selectedSourceDetail={selectedSourceDetail}
+                  selectedSourceId={selectedSourceId}
+                  sources={debateDetail.sources}
+                  onSelectSource={handleSelectSource}
+                />
+                <EventTimeline events={debateDetail.events} />
+              </>
+            ) : (
+              <section className="panel notes-panel">
+                <div className="panel-heading">
+                  <h2>How it works</h2>
+                </div>
+                <ul className="notes-list">
+                  <li>Enter a debate topic and the AI drafts a formal resolution.</li>
+                  <li>Review and refine the resolution before launching.</li>
+                  <li>Watch both sides debate in real time with live evidence.</li>
+                  <li>Review the transcript and pick the winning side.</li>
+                </ul>
+              </section>
+            )}
+          </aside>
+        </main>
+      </div>
     </div>
   );
 }
