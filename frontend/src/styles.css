@@ -266,7 +266,7 @@ a {
 
 .topic-scroll__field--top {
   position: absolute;
-  top: 5rem;
+  top: 7.35rem;
   left: 50%;
   width: 56%;
   max-width: 28rem;
@@ -740,7 +740,7 @@ a {
   }
 
   .topic-scroll__field--top {
-    top: 1.1rem;
+    top: 2.5rem;
     width: 58%;
     max-width: 16rem;
   }
