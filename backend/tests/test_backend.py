@@ -118,7 +118,7 @@ def client(workspace_tmp_path, monkeypatch):
 
 def wait_for_completion(client: TestClient, debate_id: str) -> dict:
     for _ in range(20):
-        payload = client.get(f"/debates/{debate_id}")
+        payload = client.get(f"/api/debates/{debate_id}")
         assert payload.status_code == 200
         detail = payload.json()
         if detail["debate"]["status"] in {"completed", "failed"}:
@@ -177,19 +177,19 @@ def test_repository_source_membership_lookup(workspace_tmp_path, monkeypatch):
 
 
 def test_debate_lifecycle_events_sources_and_stream(client: TestClient):
-    created = client.post("/debates", json={"topic": "Should cities ban cars?"})
+    created = client.post("/api/debates", json={"topic": "Should cities ban cars?"})
     assert created.status_code == 201
     debate_id = created.json()["debate_id"]
     assert created.json()["status"] == "awaiting_confirmation"
 
     confirmed = client.post(
-        f"/debates/{debate_id}/confirm-resolution",
+        f"/api/debates/{debate_id}/confirm-resolution",
         json={"resolution": "Resolved: cities should ban most cars in dense downtown areas."},
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "ready"
 
-    started = client.post(f"/debates/{debate_id}/start")
+    started = client.post(f"/api/debates/{debate_id}/start")
     assert started.status_code == 200
     assert started.json()["status"] == "researching"
 
@@ -200,12 +200,12 @@ def test_debate_lifecycle_events_sources_and_stream(client: TestClient):
     assert all(packet["source_ids"] for packet in detail["packets"])
 
     source_id = detail["sources"][0]["source_id"]
-    source_detail = client.get(f"/debates/{debate_id}/sources/{source_id}")
+    source_detail = client.get(f"/api/debates/{debate_id}/sources/{source_id}")
     assert source_detail.status_code == 200
     assert source_detail.json()["source"]["source_id"] == source_id
     assert source_detail.json()["used_by_sides"]
 
-    events = client.get(f"/debates/{debate_id}/events")
+    events = client.get(f"/api/debates/{debate_id}/events")
     assert events.status_code == 200
     event_types = [event["event_type"] for event in events.json()]
     for required in [
@@ -220,33 +220,33 @@ def test_debate_lifecycle_events_sources_and_stream(client: TestClient):
     ]:
         assert required in event_types
 
-    with client.stream("GET", f"/debates/{debate_id}/stream") as response:
+    with client.stream("GET", f"/api/debates/{debate_id}/stream") as response:
         body = "".join(chunk.decode() if isinstance(chunk, bytes) else chunk for chunk in response.iter_text())
     assert "round_completed" in body
     assert "debate_completed" in body
 
 
 def test_winner_selection_is_idempotent_and_returns_animation_state(client: TestClient):
-    debate_id = client.post("/debates", json={"topic": "Should schools require uniforms?"}).json()["debate_id"]
+    debate_id = client.post("/api/debates", json={"topic": "Should schools require uniforms?"}).json()["debate_id"]
     client.post(
-        f"/debates/{debate_id}/confirm-resolution",
+        f"/api/debates/{debate_id}/confirm-resolution",
         json={"resolution": "Resolved: schools should require uniforms."},
     )
-    client.post(f"/debates/{debate_id}/start")
+    client.post(f"/api/debates/{debate_id}/start")
     wait_for_completion(client, debate_id)
 
-    winner = client.post(f"/debates/{debate_id}/winner", json={"winner_side": "pro"})
+    winner = client.post(f"/api/debates/{debate_id}/winner", json={"winner_side": "pro"})
     assert winner.status_code == 200
     assert winner.json()["winner_side"] == "pro"
     assert winner.json()["winning_animation_state"]["winner_pose"] == "raise_hand"
 
-    winner_repeat = client.post(f"/debates/{debate_id}/winner", json={"winner_side": "pro"})
+    winner_repeat = client.post(f"/api/debates/{debate_id}/winner", json={"winner_side": "pro"})
     assert winner_repeat.status_code == 200
 
-    winner_change = client.post(f"/debates/{debate_id}/winner", json={"winner_side": "con"})
+    winner_change = client.post(f"/api/debates/{debate_id}/winner", json={"winner_side": "con"})
     assert winner_change.status_code == 400
 
-    events = client.get(f"/debates/{debate_id}/events").json()
+    events = client.get(f"/api/debates/{debate_id}/events").json()
     winner_events = [event for event in events if event["event_type"] == "winner_selected"]
     assert len(winner_events) == 1
     winner_event = winner_events[0]
@@ -255,25 +255,25 @@ def test_winner_selection_is_idempotent_and_returns_animation_state(client: Test
 
 
 def test_start_fails_clearly_when_live_retrieval_disabled(client: TestClient, monkeypatch):
-    debate_id = client.post("/debates", json={"topic": "Should cities ban cars?"}).json()["debate_id"]
+    debate_id = client.post("/api/debates", json={"topic": "Should cities ban cars?"}).json()["debate_id"]
     client.post(
-        f"/debates/{debate_id}/confirm-resolution",
+        f"/api/debates/{debate_id}/confirm-resolution",
         json={"resolution": "Resolved: cities should ban most cars in dense downtown areas."},
     )
     monkeypatch.setattr(settings, "enable_live_retrieval", False)
 
-    started = client.post(f"/debates/{debate_id}/start")
+    started = client.post(f"/api/debates/{debate_id}/start")
 
     assert started.status_code == 400
     assert "Live retrieval is disabled" in started.json()["detail"]
 
 
 def test_empty_topic_and_resolution_are_rejected(client: TestClient):
-    created = client.post("/debates", json={"topic": "   "})
+    created = client.post("/api/debates", json={"topic": "   "})
     assert created.status_code == 422
 
-    debate_id = client.post("/debates", json={"topic": "Should schools require uniforms?"}).json()["debate_id"]
-    confirmed = client.post(f"/debates/{debate_id}/confirm-resolution", json={"resolution": "   "})
+    debate_id = client.post("/api/debates", json={"topic": "Should schools require uniforms?"}).json()["debate_id"]
+    confirmed = client.post(f"/api/debates/{debate_id}/confirm-resolution", json={"resolution": "   "})
     assert confirmed.status_code == 422
 
 
