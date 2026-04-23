@@ -6,6 +6,7 @@ import type { TranscriptEntry } from "../types";
 interface TranscriptPanelProps {
   transcript: TranscriptEntry[];
   onCitationHover: (sourceId: string | null) => void;
+  onStreamingComplete?: () => void;
 }
 
 const CHUNK_SIZE = 3;   // words revealed per tick
@@ -37,13 +38,14 @@ function tokenize(text: string): string[] {
   return text.split(" ").filter((t) => t.length > 0);
 }
 
-export function TranscriptPanel({ transcript, onCitationHover }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcript, onCitationHover, onStreamingComplete }: TranscriptPanelProps) {
   const lastEntry = transcript[transcript.length - 1] ?? null;
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState(0);
-  // Stable ref so the tick effect never closes over a stale activeId
   const activeIdRef = useRef<string | null>(null);
+  // Prevents onStreamingComplete from firing more than once per entry.
+  const streamingDoneRef = useRef(false);
 
   // Start streaming whenever a new entry becomes the last one.
   useEffect(() => {
@@ -51,19 +53,26 @@ export function TranscriptPanel({ transcript, onCitationHover }: TranscriptPanel
     activeIdRef.current = lastEntry.entry_id;
     setActiveId(lastEntry.entry_id);
     setVisibleTokens(0);
+    streamingDoneRef.current = false;
   }, [lastEntry?.entry_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tick: reveal CHUNK_SIZE more tokens until the entry is fully shown.
   useEffect(() => {
     if (!activeId || !lastEntry || lastEntry.entry_id !== activeId) return;
     const total = tokenize(lastEntry.text).length;
-    if (visibleTokens >= total) return;
+    if (visibleTokens >= total) {
+      if (!streamingDoneRef.current) {
+        streamingDoneRef.current = true;
+        onStreamingComplete?.();
+      }
+      return;
+    }
     const timer = setTimeout(
       () => setVisibleTokens((c) => Math.min(c + CHUNK_SIZE, total)),
       TICK_MS,
     );
     return () => clearTimeout(timer);
-  }, [activeId, visibleTokens, lastEntry]);
+  }, [activeId, visibleTokens, lastEntry, onStreamingComplete]);
 
   function getDisplayText(entry: TranscriptEntry): { text: string; streaming: boolean } {
     if (entry.entry_id !== activeId) return { text: entry.text, streaming: false };

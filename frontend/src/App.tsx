@@ -43,6 +43,7 @@ export default function App() {
   const [debateSummary, setDebateSummary] = useState<DebateSummary | null>(null);
   const [debateDetail, setDebateDetail] = useState<DebateDetailResponse | null>(null);
   const [visibleCount, setVisibleCount] = useState(0);
+  const [pendingReveal, setPendingReveal] = useState(false);
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null);
   const prevDebateIdRef = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -167,19 +168,30 @@ export default function App() {
     if (debateId !== prevDebateIdRef.current) {
       prevDebateIdRef.current = debateId;
       setVisibleCount(0);
+      setPendingReveal(false);
     }
   }, [debateId]);
 
-  // While running: reveal one entry at a time. Otherwise show all immediately.
+  // Seed first entry; reveal next only when streaming finishes AND new entry arrived.
   useEffect(() => {
     if (view !== "running") {
       setVisibleCount(fullTranscript.length);
       return;
     }
-    if (fullTranscript.length <= visibleCount) return;
-    const timer = setTimeout(() => setVisibleCount((c) => c + 1), 180);
-    return () => clearTimeout(timer);
-  }, [fullTranscript.length, visibleCount, view]);
+    if (visibleCount === 0 && fullTranscript.length > 0) {
+      setVisibleCount(1);
+      return;
+    }
+    if (pendingReveal && fullTranscript.length > visibleCount) {
+      setPendingReveal(false);
+      setVisibleCount((c) => c + 1);
+    }
+  }, [fullTranscript.length, visibleCount, view, pendingReveal]);
+
+  // Called when the currently-streaming entry finishes — wait for the next backend entry.
+  const handleStreamingComplete = useCallback(() => {
+    setPendingReveal(true);
+  }, []);
 
   const visibleTranscript = fullTranscript.slice(0, visibleCount);
 
@@ -247,7 +259,7 @@ export default function App() {
           {activeDebate && (view === "running" || view === "completed") ? (
             <>
               <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={visibleTranscript} onCitationHover={handleCitationHover} />
+              <TranscriptPanel transcript={visibleTranscript} onCitationHover={handleCitationHover} onStreamingComplete={handleStreamingComplete} />
               {view === "completed" ? (
                 <WinnerPanel
                   busyAction={busyAction}
