@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from app.models.common import SourceType
 
@@ -103,21 +103,29 @@ class RetrievalService:
         return documents
 
     def _fetch_document(self, url: str, resolution: str, fallback_title: str, fallback_summary: str) -> RetrievedDocument | None:
+        soup: BeautifulSoup | None = None
         try:
             response = self.client.get(url)
             response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
         except Exception:
-            return None
+            pass
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        title = self._extract_title(soup) or fallback_title
-        summary = self._extract_summary(soup) or fallback_summary.strip()
-        body_excerpt = self._extract_body_excerpt(soup)
+        if soup is not None:
+            title = self._extract_title(soup) or fallback_title
+            summary = self._extract_summary(soup) or fallback_summary.strip()
+            body_excerpt = self._extract_body_excerpt(soup)
+            published_at = self._extract_date(soup)
+        else:
+            title = fallback_title
+            summary = fallback_summary.strip()
+            body_excerpt = None
+            published_at = None
+
         snippets = self._build_snippets(body_excerpt, summary)
         if not snippets and not summary:
             return None
 
-        published_at = self._extract_date(soup)
         relevance_score = self._score_relevance(resolution, title, summary, body_excerpt)
         recency_score = self._score_recency(published_at)
 
