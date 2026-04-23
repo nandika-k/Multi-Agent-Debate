@@ -8,7 +8,7 @@ from app.models.source import EvidencePacket
 class CitationValidator:
     citation_pattern = re.compile(r"\[(S\d+)\]")
     factual_signal_pattern = re.compile(
-        r"(\b\d+(?:\.\d+)?%?\b|according to|study|report|data|survey|research|found that|institution|agency|commission|analysis)",
+        r"(\b\d+(?:\.\d+)?%|\baccording to\b|\bfound that\b)",
         re.IGNORECASE,
     )
 
