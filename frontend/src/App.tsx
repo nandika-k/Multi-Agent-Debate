@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   confirmResolution,
@@ -46,6 +46,8 @@ export default function App() {
   const [debateDetail, setDebateDetail] = useState<DebateDetailResponse | null>(null);
   const [sourceDetails, setSourceDetails] = useState<Record<string, SourceDetailResponse>>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const prevDebateIdRef = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -175,6 +177,29 @@ export default function App() {
     [debateId, refreshDebate],
   );
 
+  const fullTranscript = debateDetail?.transcript ?? [];
+
+  // Reset when debate switches.
+  useEffect(() => {
+    if (debateId !== prevDebateIdRef.current) {
+      prevDebateIdRef.current = debateId;
+      setVisibleCount(0);
+    }
+  }, [debateId]);
+
+  // While running: reveal one entry at a time. Otherwise show all immediately.
+  useEffect(() => {
+    if (view !== "running") {
+      setVisibleCount(fullTranscript.length);
+      return;
+    }
+    if (fullTranscript.length <= visibleCount) return;
+    const timer = setTimeout(() => setVisibleCount((c) => c + 1), 180);
+    return () => clearTimeout(timer);
+  }, [fullTranscript.length, visibleCount, view]);
+
+  const visibleTranscript = fullTranscript.slice(0, visibleCount);
+
   const { lastEvent, streamState } = useDebateStream({
     debateId,
     enabled: view === "running",
@@ -246,7 +271,7 @@ export default function App() {
           {activeDebate && (view === "running" || view === "completed") ? (
             <>
               <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={debateDetail?.transcript ?? []} />
+              <TranscriptPanel transcript={visibleTranscript} />
               {view === "completed" ? (
                 <WinnerPanel
                   busyAction={busyAction}
