@@ -1,10 +1,9 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   confirmResolution,
   createDebate,
   getDebate,
-  getSourceDetail,
   pickWinner,
   startDebate,
 } from "./api";
@@ -21,7 +20,6 @@ import type {
   DebateDetailResponse,
   DebateSide,
   DebateSummary,
-  SourceDetailResponse,
 } from "./types";
 import { useDebateStream } from "./useDebateStream";
 
@@ -44,14 +42,10 @@ export default function App() {
   const [debateId, setDebateId] = useState<string | null>(null);
   const [debateSummary, setDebateSummary] = useState<DebateSummary | null>(null);
   const [debateDetail, setDebateDetail] = useState<DebateDetailResponse | null>(null);
-  const [sourceDetails, setSourceDetails] = useState<Record<string, SourceDetailResponse>>({});
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(0);
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDebateIdRef = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeDebate = debateDetail?.debate ?? debateSummary;
@@ -143,35 +137,13 @@ export default function App() {
     [debateId, refreshDebate],
   );
 
-  const handleSelectSource = useCallback(
-    async (sourceId: string) => {
-      if (!debateId) {
-        return;
-      }
-      setSelectedSourceId(sourceId);
-      if (sourceDetails[sourceId]) {
-        return;
-      }
-      setLoadingSourceId(sourceId);
-      try {
-        const detail = await getSourceDetail(debateId, sourceId);
-        setSourceDetails((current) => ({ ...current, [sourceId]: detail }));
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to fetch the source detail.");
-      } finally {
-        setLoadingSourceId(null);
-      }
-    },
-    [debateId, sourceDetails],
-  );
-
-  const handleCitationClick = useCallback((sourceId: string) => {
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+  const handleCitationHover = useCallback((sourceId: string | null) => {
     setHighlightedSourceId(sourceId);
-    document
-      .querySelector(`[data-source-id="${sourceId}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    highlightTimerRef.current = setTimeout(() => setHighlightedSourceId(null), 1600);
+    if (sourceId) {
+      document
+        .querySelector(`[data-source-id="${sourceId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }, []);
 
   const handleRelevantStreamEvent = useCallback(
@@ -216,13 +188,6 @@ export default function App() {
     enabled: view === "running",
     onRelevantEvent: handleRelevantStreamEvent,
   });
-
-  const selectedSourceDetail = useMemo(() => {
-    if (!selectedSourceId) {
-      return null;
-    }
-    return sourceDetails[selectedSourceId] ?? null;
-  }, [selectedSourceId, sourceDetails]);
 
   return (
     <div className="app-shell">
@@ -282,7 +247,7 @@ export default function App() {
           {activeDebate && (view === "running" || view === "completed") ? (
             <>
               <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={visibleTranscript} onCitationClick={handleCitationClick} />
+              <TranscriptPanel transcript={visibleTranscript} onCitationHover={handleCitationHover} />
               {view === "completed" ? (
                 <WinnerPanel
                   busyAction={busyAction}
@@ -299,12 +264,8 @@ export default function App() {
             <>
               <SourceRail
                 highlightedSourceId={highlightedSourceId}
-                loadingSourceId={loadingSourceId}
                 packets={debateDetail.packets}
-                selectedSourceDetail={selectedSourceDetail}
-                selectedSourceId={selectedSourceId}
                 sources={debateDetail.sources}
-                onSelectSource={handleSelectSource}
               />
               <EventTimeline events={debateDetail.events} />
             </>

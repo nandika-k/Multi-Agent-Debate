@@ -1,25 +1,13 @@
 import { formatPercent, formatSide, sourceAccent } from "../formatters";
-import type { EvidencePacket, SourceCard, SourceDetailResponse } from "../types";
+import type { EvidencePacket, SourceCard } from "../types";
 
 interface SourceRailProps {
   packets: EvidencePacket[];
   sources: SourceCard[];
-  selectedSourceId: string | null;
   highlightedSourceId: string | null;
-  selectedSourceDetail: SourceDetailResponse | null;
-  loadingSourceId: string | null;
-  onSelectSource: (sourceId: string) => void;
 }
 
-export function SourceRail({
-  packets,
-  sources,
-  selectedSourceId,
-  highlightedSourceId,
-  selectedSourceDetail,
-  loadingSourceId,
-  onSelectSource,
-}: SourceRailProps) {
+export function SourceRail({ packets, sources, highlightedSourceId }: SourceRailProps) {
   return (
     <section className="panel source-panel">
       <div className="panel-heading">
@@ -51,13 +39,15 @@ export function SourceRail({
 
       <div className="source-list">
         {sources.map((source) => (
-          <button
+          <a
             className={`source-card source-card--${sourceAccent(source)} ${
-              selectedSourceId === source.source_id ? "is-selected" : ""
-            } ${highlightedSourceId === source.source_id ? "is-highlighted" : ""}`}
+              highlightedSourceId === source.source_id ? "is-highlighted" : ""
+            }`}
             data-source-id={source.source_id}
+            href={source.url}
             key={source.source_id}
-            onClick={() => onSelectSource(source.source_id)}
+            rel="noreferrer"
+            target="_blank"
           >
             <div className="source-card__topline">
               <span>{source.publisher}</span>
@@ -69,36 +59,9 @@ export function SourceRail({
               <span>Trust {formatPercent(source.trust_score)}</span>
               <span>Relevance {formatPercent(source.relevance_score)}</span>
             </div>
-            {loadingSourceId === source.source_id ? <small>Loading source detail...</small> : null}
-          </button>
+          </a>
         ))}
       </div>
-
-      <aside className="source-detail" aria-live="polite">
-        {selectedSourceDetail ? (
-          <>
-            <span className="eyebrow">Selected source</span>
-            <h3>{selectedSourceDetail.source.title}</h3>
-            <p>{selectedSourceDetail.source.body_excerpt ?? selectedSourceDetail.source.summary}</p>
-            <ul>
-              {selectedSourceDetail.source.supporting_snippets.map((snippet) => (
-                <li key={snippet}>{snippet}</li>
-              ))}
-            </ul>
-            <p>
-              Used by:{" "}
-              {selectedSourceDetail.used_by_sides.length > 0
-                ? selectedSourceDetail.used_by_sides.map(formatSide).join(" and ")
-                : "Not assigned yet"}
-            </p>
-            <a href={selectedSourceDetail.source.url} rel="noreferrer" target="_blank">
-              Open original source
-            </a>
-          </>
-        ) : (
-          <p>Select a source to inspect how it supports the debate.</p>
-        )}
-      </aside>
     </section>
   );
 }

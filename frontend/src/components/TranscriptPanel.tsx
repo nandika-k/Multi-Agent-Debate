@@ -3,17 +3,22 @@ import type { TranscriptEntry } from "../types";
 
 interface TranscriptPanelProps {
   transcript: TranscriptEntry[];
-  onCitationClick: (sourceId: string) => void;
+  onCitationHover: (sourceId: string | null) => void;
 }
 
 const CITATION_RE = /(\[S\d+\])/g;
 
-function renderText(text: string, onCitationClick: (id: string) => void) {
+function renderText(text: string, onCitationHover: (id: string | null) => void) {
   return text.split(CITATION_RE).map((part, i) => {
     const m = /^\[(S\d+)\]$/.exec(part);
     if (m) {
       return (
-        <button className="citation-ref" key={i} onClick={() => onCitationClick(m[1])}>
+        <button
+          className="citation-ref"
+          key={i}
+          onMouseEnter={() => onCitationHover(m[1])}
+          onMouseLeave={() => onCitationHover(null)}
+        >
           {part}
         </button>
       );
@@ -22,7 +27,7 @@ function renderText(text: string, onCitationClick: (id: string) => void) {
   });
 }
 
-export function TranscriptPanel({ transcript, onCitationClick }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcript, onCitationHover }: TranscriptPanelProps) {
   return (
     <section className="panel transcript-panel">
       <div className="panel-heading">
@@ -46,7 +51,7 @@ export function TranscriptPanel({ transcript, onCitationClick }: TranscriptPanel
                 </div>
                 <span>{formatTimestamp(entry.created_at)}</span>
               </header>
-              <p>{renderText(entry.text, onCitationClick)}</p>
+              <p>{renderText(entry.text, onCitationHover)}</p>
               <footer>
                 <span>{entry.char_count} chars</span>
                 <span>{entry.citations.length} citations</span>
