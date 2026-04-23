@@ -3,9 +3,26 @@ import type { TranscriptEntry } from "../types";
 
 interface TranscriptPanelProps {
   transcript: TranscriptEntry[];
+  onCitationClick: (sourceId: string) => void;
 }
 
-export function TranscriptPanel({ transcript }: TranscriptPanelProps) {
+const CITATION_RE = /(\[S\d+\])/g;
+
+function renderText(text: string, onCitationClick: (id: string) => void) {
+  return text.split(CITATION_RE).map((part, i) => {
+    const m = /^\[(S\d+)\]$/.exec(part);
+    if (m) {
+      return (
+        <button className="citation-ref" key={i} onClick={() => onCitationClick(m[1])}>
+          {part}
+        </button>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+export function TranscriptPanel({ transcript, onCitationClick }: TranscriptPanelProps) {
   return (
     <section className="panel transcript-panel">
       <div className="panel-heading">
@@ -29,7 +46,7 @@ export function TranscriptPanel({ transcript }: TranscriptPanelProps) {
                 </div>
                 <span>{formatTimestamp(entry.created_at)}</span>
               </header>
-              <p>{entry.text}</p>
+              <p>{renderText(entry.text, onCitationClick)}</p>
               <footer>
                 <span>{entry.char_count} chars</span>
                 <span>{entry.citations.length} citations</span>

@@ -5,6 +5,7 @@ interface SourceRailProps {
   packets: EvidencePacket[];
   sources: SourceCard[];
   selectedSourceId: string | null;
+  highlightedSourceId: string | null;
   selectedSourceDetail: SourceDetailResponse | null;
   loadingSourceId: string | null;
   onSelectSource: (sourceId: string) => void;
@@ -14,6 +15,7 @@ export function SourceRail({
   packets,
   sources,
   selectedSourceId,
+  highlightedSourceId,
   selectedSourceDetail,
   loadingSourceId,
   onSelectSource,
@@ -52,7 +54,8 @@ export function SourceRail({
           <button
             className={`source-card source-card--${sourceAccent(source)} ${
               selectedSourceId === source.source_id ? "is-selected" : ""
-            }`}
+            } ${highlightedSourceId === source.source_id ? "is-highlighted" : ""}`}
+            data-source-id={source.source_id}
             key={source.source_id}
             onClick={() => onSelectSource(source.source_id)}
           >

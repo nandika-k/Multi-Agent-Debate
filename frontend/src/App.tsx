@@ -47,6 +47,8 @@ export default function App() {
   const [sourceDetails, setSourceDetails] = useState<Record<string, SourceDetailResponse>>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(0);
+  const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDebateIdRef = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null);
@@ -163,6 +165,15 @@ export default function App() {
     [debateId, sourceDetails],
   );
 
+  const handleCitationClick = useCallback((sourceId: string) => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedSourceId(sourceId);
+    document
+      .querySelector(`[data-source-id="${sourceId}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    highlightTimerRef.current = setTimeout(() => setHighlightedSourceId(null), 1600);
+  }, []);
+
   const handleRelevantStreamEvent = useCallback(
     async () => {
       if (!debateId) {
@@ -271,7 +282,7 @@ export default function App() {
           {activeDebate && (view === "running" || view === "completed") ? (
             <>
               <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={visibleTranscript} />
+              <TranscriptPanel transcript={visibleTranscript} onCitationClick={handleCitationClick} />
               {view === "completed" ? (
                 <WinnerPanel
                   busyAction={busyAction}
@@ -287,6 +298,7 @@ export default function App() {
           {activeDebate && debateDetail ? (
             <>
               <SourceRail
+                highlightedSourceId={highlightedSourceId}
                 loadingSourceId={loadingSourceId}
                 packets={debateDetail.packets}
                 selectedSourceDetail={selectedSourceDetail}

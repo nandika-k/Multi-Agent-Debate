@@ -416,6 +416,35 @@ a {
   box-shadow: inset 0 0 0 2px rgba(17, 17, 17, 0.22);
 }
 
+@keyframes title-flash {
+  0%   { color: var(--con-bright); }
+  60%  { color: var(--con-bright); }
+  100% { color: var(--ink); }
+}
+
+.source-card.is-highlighted h3 {
+  animation: title-flash 1.6s ease forwards;
+}
+
+.citation-ref {
+  display: inline;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--con);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--con-bright);
+  text-underline-offset: 2px;
+  transition: color 120ms;
+}
+
+.citation-ref:hover {
+  color: var(--con-bright);
+}
+
 .source-card--pro {
   border-color: rgba(142, 29, 29, 0.24);
 }
