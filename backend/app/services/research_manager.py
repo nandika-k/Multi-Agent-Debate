@@ -98,13 +98,3 @@ class ResearchManager:
     def _validate_packet(self, packet: list[SourceCard], side_label: str) -> None:
         if len(packet) < settings.packet_min_size:
             raise ValueError(f"{side_label.title()} packet does not have enough evidence")
-
-        has_news = any(source.source_type == SourceType.NEWS for source in packet)
-        has_non_news = any(
-            source.source_type in {SourceType.PRIMARY, SourceType.RESEARCH, SourceType.DATA}
-            for source in packet
-        )
-        if not has_news:
-            raise ValueError(f"{side_label.title()} packet is missing a trusted news source")
-        if not has_non_news:
-            raise ValueError(f"{side_label.title()} packet is missing primary, research, or data evidence")
