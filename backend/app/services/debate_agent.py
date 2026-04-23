@@ -31,8 +31,12 @@ class DebateAgent:
             return self._stub_round(side, round_type, resolution, packet_sources)
 
         client = self._get_client()
+        char_limit = get_character_limits()[round_type]
+        schema = GeneratedRound.model_json_schema()
+        schema["properties"]["text"]["maxLength"] = char_limit
         response = client.chat.completions.create(
             model=settings.groq_model,
+            max_tokens=char_limit // 4 + 350,
             messages=[
                 {"role": "system", "content": self._system_prompt(round_type)},
                 {"role": "user", "content": self._user_prompt(
@@ -50,7 +54,7 @@ class DebateAgent:
                 "function": {
                     "name": "generate_round",
                     "description": "Output the structured debate round.",
-                    "parameters": GeneratedRound.model_json_schema(),
+                    "parameters": schema,
                 },
             }],
             tool_choice={"type": "function", "function": {"name": "generate_round"}},

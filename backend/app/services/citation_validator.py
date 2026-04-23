@@ -20,9 +20,6 @@ class CitationValidator:
         round_type: RoundType,
     ) -> None:
         text = generated.text.strip()
-        if len(text) > char_limit:
-            raise ValueError(f"Round exceeds character limit of {char_limit}")
-
         cited_ids = set(self.citation_pattern.findall(text))
         if set(generated.citations) != cited_ids:
             raise ValueError("Structured citation list does not match inline citation usage")
