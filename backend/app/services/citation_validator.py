@@ -43,8 +43,6 @@ class CitationValidator:
                 raise ValueError(f"source_usage references an unknown source: {usage.source_id}")
 
         self._validate_uncited_factual_claims(text)
-        if round_type == RoundType.CLOSING and "new evidence" in " ".join(generated.claim_notes).lower():
-            raise ValueError("Closing argument should not introduce major new evidence")
 
     def _validate_uncited_factual_claims(self, text: str) -> None:
         sentences = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", text) if segment.strip()]

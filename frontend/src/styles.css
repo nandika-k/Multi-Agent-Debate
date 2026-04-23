@@ -404,12 +404,15 @@ a {
 }
 
 .source-card {
+  display: block;
   width: 100%;
   text-align: left;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.86);
   padding: 1rem;
+  text-decoration: none;
+  color: inherit;
 }
 
 .source-card.is-selected {

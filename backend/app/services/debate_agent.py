@@ -98,9 +98,9 @@ class DebateAgent:
         round_rules = {
             RoundType.OPENING: "Build a clear case and cite factual claims.",
             RoundType.CROSSFIRE_QUESTIONS: "Ask concise clarifying questions only; do not deliver a speech.",
-            RoundType.CROSSFIRE_ANSWERS: "Answer the opponent directly and briefly.",
+            RoundType.CROSSFIRE_ANSWERS: "Answer the opponent's questions directly and briefly; cite at least one source from your packet inline using [S#] to back your answer.",
             RoundType.REBUTTAL: "Respond to the opponent's best claims and defend your own.",
-            RoundType.CLOSING: "Summarize the strongest supported points and avoid introducing major new evidence.",
+            RoundType.CLOSING: "Summarize the strongest supported points; cite the key sources inline using [S#]; do not make new factual claims beyond what was already argued.",
         }
         return (
             "You are one side of a formal debate. "
