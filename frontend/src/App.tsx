@@ -1,302 +1,167 @@
-import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from 'react'
 
-import {
-  confirmResolution,
-  createDebate,
-  getDebate,
-  pickWinner,
-  startDebate,
-} from "./api";
-import { EventTimeline } from "./components/EventTimeline";
-import { ResolutionEditor } from "./components/ResolutionEditor";
-import { SourceRail } from "./components/SourceRail";
-import { StatusBanner } from "./components/StatusBanner";
-import { TopicComposer } from "./components/TopicComposer";
-import { TranscriptPanel } from "./components/TranscriptPanel";
-import { WinnerPanel } from "./components/WinnerPanel";
-import { formatStatus, formatTimestamp } from "./formatters";
-import type {
-  AppView,
-  DebateDetailResponse,
-  DebateSide,
-  DebateSummary,
-} from "./types";
-import { useDebateStream } from "./useDebateStream";
+import type { DebateSummary } from './types'
+import { BoxingRing } from './components/BoxingRing'
+import { ResolutionEditor } from './components/ResolutionEditor'
+import { SourceRail } from './components/SourceRail'
+import { StatusBanner } from './components/StatusBanner'
+import { TopicComposer } from './components/TopicComposer'
+import { WinnerPanel } from './components/WinnerPanel'
+import { useDebateStream } from './useDebateStream'
 
-function resolveView(summary: DebateSummary | null): AppView {
-  if (!summary) {
-    return "topic";
-  }
-  if (summary.status === "awaiting_confirmation" || summary.status === "ready") {
-    return "resolution";
-  }
-  if (summary.status === "researching" || summary.status === "in_progress") {
-    return "running";
-  }
-  return "completed";
-}
+type AppView = 'topic' | 'resolution' | 'debate' | 'failed'
 
 export default function App() {
-  const [topicInput, setTopicInput] = useState("");
-  const [resolutionInput, setResolutionInput] = useState("");
-  const [debateId, setDebateId] = useState<string | null>(null);
-  const [debateSummary, setDebateSummary] = useState<DebateSummary | null>(null);
-  const [debateDetail, setDebateDetail] = useState<DebateDetailResponse | null>(null);
-  const [visibleCount, setVisibleCount] = useState(0);
-  const [pendingReveal, setPendingReveal] = useState(false);
-  const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null);
-  const prevDebateIdRef = useRef<string | null>(null);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [view, setView] = useState<AppView>('topic')
+  const [debateId, setDebateId] = useState<string | null>(null)
+  const [pendingDebate, setPendingDebate] = useState<DebateSummary | null>(null)
+  const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null)
+  const [voiceReadingEnabled, setVoiceReadingEnabled] = useState(true)
 
-  const activeDebate = debateDetail?.debate ?? debateSummary;
-  const view = resolveView(activeDebate);
+  const {
+    debate,
+    transcript,
+    sources,
+    currentRound,
+    lastEvent,
+    newEntryIds,
+  } = useDebateStream(view === 'debate' ? debateId : null)
 
-  const refreshDebate = useCallback(async (id: string) => {
-    const detail = await getDebate(id);
-    startTransition(() => {
-      setDebateSummary(detail.debate);
-      setDebateDetail(detail);
-    });
-    return detail;
-  }, []);
+  const effectiveDebate = debate ?? pendingDebate
+  const isCompleted = effectiveDebate?.status === 'completed'
+  const isFailed = effectiveDebate?.status === 'failed' || view === 'failed'
 
-  useEffect(() => {
-    if (!activeDebate) {
-      setResolutionInput("");
-      return;
-    }
-    setResolutionInput(activeDebate.resolution_final ?? activeDebate.resolution_draft);
-  }, [activeDebate?.debate_id, activeDebate?.resolution_draft, activeDebate?.resolution_final]);
+  function handleDebateCreated(d: DebateSummary) {
+    setPendingDebate(d)
+    setDebateId(d.debate_id)
+    setView('resolution')
+  }
 
-  const handleCreateDebate = useCallback(async () => {
-    setBusyAction("create");
-    setErrorMessage(null);
-    try {
-      const summary = await createDebate(topicInput.trim());
-      setDebateId(summary.debate_id);
-      setDebateSummary(summary);
-      await refreshDebate(summary.debate_id);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to create debate.");
-    } finally {
-      setBusyAction(null);
-    }
-  }, [refreshDebate, topicInput]);
+  function handleResolutionConfirmed(d: DebateSummary) {
+    setPendingDebate(d)
+    setView('debate')
+  }
 
-  const handleConfirmResolution = useCallback(async () => {
-    if (!debateId) {
-      return;
-    }
-    setBusyAction("confirm");
-    setErrorMessage(null);
-    try {
-      const summary = await confirmResolution(debateId, resolutionInput.trim());
-      setDebateSummary(summary);
-      await refreshDebate(summary.debate_id);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to confirm the resolution.");
-    } finally {
-      setBusyAction(null);
-    }
-  }, [debateId, refreshDebate, resolutionInput]);
+  function handleCancelResolution() {
+    setPendingDebate(null)
+    setDebateId(null)
+    setView('topic')
+  }
 
-  const handleStartDebate = useCallback(async () => {
-    if (!debateId) {
-      return;
-    }
-    setBusyAction("start");
-    setErrorMessage(null);
-    try {
-      const summary = await startDebate(debateId);
-      setDebateSummary(summary);
-      await refreshDebate(summary.debate_id);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to start the debate.");
-    } finally {
-      setBusyAction(null);
-    }
-  }, [debateId, refreshDebate]);
+  function handlePickWinner(updated: DebateSummary) {
+    setPendingDebate(updated)
+  }
 
-  const handlePickWinner = useCallback(
-    async (winnerSide: DebateSide) => {
-      if (!debateId) {
-        return;
-      }
-      setBusyAction("winner");
-      setErrorMessage(null);
-      try {
-        const summary = await pickWinner(debateId, winnerSide);
-        setDebateSummary(summary);
-        await refreshDebate(summary.debate_id);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to save the winner.");
-      } finally {
-        setBusyAction(null);
-      }
-    },
-    [debateId, refreshDebate],
-  );
+  function handleNewDebate() {
+    setPendingDebate(null)
+    setDebateId(null)
+    setView('topic')
+    setHighlightedSourceId(null)
+  }
 
   const handleCitationHover = useCallback((sourceId: string | null) => {
-    setHighlightedSourceId(sourceId);
-    if (sourceId) {
-      document
-        .querySelector(`[data-source-id="${sourceId}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, []);
+    setHighlightedSourceId(sourceId)
+  }, [])
 
-  const handleRelevantStreamEvent = useCallback(
-    async () => {
-      if (!debateId) {
-        return;
-      }
-      try {
-        await refreshDebate(debateId);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to refresh live debate data.");
-      }
-    },
-    [debateId, refreshDebate],
-  );
+  const isResearching = effectiveDebate?.status === 'researching'
+  const researchEvents = [
+    { label: 'Gathering sources from the web', type: 'research_started' },
+    { label: 'Evaluating source quality', type: 'sources_collected' },
+    { label: 'Building evidence packets', type: 'packets_ready' },
+    { label: 'Fighters step into the ring...', type: 'round_started' },
+  ]
 
-  const fullTranscript = debateDetail?.transcript ?? [];
+  function getResearchStepState(eventType: string) {
+    if (!lastEvent) return 'pending' as const
+    const types = ['research_started', 'sources_collected', 'packets_ready', 'round_started', 'round_completed', 'debate_completed']
+    const lastIdx = types.indexOf(lastEvent.event_type)
+    const myIdx = types.indexOf(eventType)
+    if (lastIdx > myIdx) return 'done' as const
+    if (lastIdx === myIdx) return 'active' as const
+    return 'pending' as const
+  }
 
-  // Reset when debate switches.
-  useEffect(() => {
-    if (debateId !== prevDebateIdRef.current) {
-      prevDebateIdRef.current = debateId;
-      setVisibleCount(0);
-      setPendingReveal(false);
-    }
-  }, [debateId]);
+  if (view === 'topic') {
+    return <TopicComposer onDebateCreated={handleDebateCreated} />
+  }
 
-  // Seed first entry; reveal next only when streaming finishes AND new entry arrived.
-  useEffect(() => {
-    if (view !== "running") {
-      setVisibleCount(fullTranscript.length);
-      return;
-    }
-    if (visibleCount === 0 && fullTranscript.length > 0) {
-      setVisibleCount(1);
-      return;
-    }
-    if (pendingReveal && fullTranscript.length > visibleCount) {
-      setPendingReveal(false);
-      setVisibleCount((c) => c + 1);
-    }
-  }, [fullTranscript.length, visibleCount, view, pendingReveal]);
+  if (view === 'resolution' && pendingDebate) {
+    return (
+      <ResolutionEditor
+        debate={pendingDebate}
+        onConfirmed={handleResolutionConfirmed}
+        onCancel={handleCancelResolution}
+      />
+    )
+  }
 
-  // Called when the currently-streaming entry finishes — wait for the next backend entry.
-  const handleStreamingComplete = useCallback(() => {
-    setPendingReveal(true);
-  }, []);
-
-  const visibleTranscript = fullTranscript.slice(0, visibleCount);
-
-  const { lastEvent, streamState } = useDebateStream({
-    debateId,
-    enabled: view === "running",
-    onRelevantEvent: handleRelevantStreamEvent,
-  });
+  if (isFailed) {
+    return (
+      <div className="failed-state">
+        <div className="failed-icon">STOP</div>
+        <div className="failed-title">FIGHT STOPPED</div>
+        <div className="failed-msg">
+          {effectiveDebate?.error_message ?? 'An error occurred during the debate.'}
+        </div>
+        <button className="btn-retry" onClick={handleNewDebate}>
+          + NEW DEBATE
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
-      <div className="background-orb background-orb--left" />
-      <div className="background-orb background-orb--right" />
+      <StatusBanner
+        topic={effectiveDebate?.topic_raw ?? null}
+        status={effectiveDebate?.status ?? null}
+        currentRound={currentRound}
+        voiceReadingEnabled={voiceReadingEnabled}
+        onToggleVoiceReading={() => setVoiceReadingEnabled(enabled => !enabled)}
+      />
 
-      <header className="hero">
-        <div className="hero__copy">
-          <span className="eyebrow">Multi-Agent Debate</span>
-          <h1>Debate architecture with a Canva-style front stage.</h1>
-          <p>
-            A single-screen workspace for drafting a resolution, launching the run, tracking live
-            evidence, and naming the winner.
-          </p>
+      {isResearching ? (
+        <div className="researching-overlay">
+          <div className="researching-title">WARMING UP THE RING...</div>
+          <div className="researching-steps">
+            {researchEvents.map(step => {
+              const state = getResearchStepState(step.type)
+              return (
+                <div key={step.type} className={`research-step ${state}`}>
+                  <div className="step-icon">
+                    {state === 'done' ? 'DONE' : state === 'active' ? 'LIVE' : 'NEXT'}
+                  </div>
+                  <span>{step.label}</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <div className="hero__meta panel">
-          <div>
-            <span className="meta-label">Current view</span>
-            <strong>{view}</strong>
-          </div>
-          <div>
-            <span className="meta-label">Status</span>
-            <strong>{activeDebate ? formatStatus(activeDebate.status) : "Not started"}</strong>
-          </div>
-          <div>
-            <span className="meta-label">Last update</span>
-            <strong>{activeDebate ? formatTimestamp(activeDebate.updated_at) : "Not yet"}</strong>
-          </div>
-        </div>
-      </header>
-
-      {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
-
-      <main className="app-grid">
-        <section className="main-column">
-          {view === "topic" ? (
-            <TopicComposer
-              busy={busyAction === "create"}
-              topic={topicInput}
-              onSubmit={handleCreateDebate}
-              onTopicChange={setTopicInput}
+      ) : (
+        <div className="arena-wrapper">
+          <BoxingRing
+            transcript={transcript}
+            sources={sources}
+            currentRound={currentRound}
+            newEntryIds={newEntryIds}
+            voiceReadingEnabled={voiceReadingEnabled}
+            highlightedSourceId={highlightedSourceId}
+            onCitationHover={handleCitationHover}
+          />
+          {isCompleted && effectiveDebate && (
+            <WinnerPanel
+              debate={effectiveDebate}
+              onPickWinner={handlePickWinner}
+              onNewDebate={handleNewDebate}
             />
-          ) : null}
-
-          {activeDebate && view === "resolution" ? (
-            <ResolutionEditor
-              busyAction={busyAction}
-              debate={activeDebate}
-              resolution={resolutionInput}
-              scope={debateDetail?.scope ?? null}
-              onConfirm={handleConfirmResolution}
-              onResolutionChange={setResolutionInput}
-              onStart={handleStartDebate}
-            />
-          ) : null}
-
-          {activeDebate && (view === "running" || view === "completed") ? (
-            <>
-              <StatusBanner currentEvent={lastEvent} debate={activeDebate} streamState={streamState} />
-              <TranscriptPanel transcript={visibleTranscript} onCitationHover={handleCitationHover} onStreamingComplete={handleStreamingComplete} />
-              {view === "completed" ? (
-                <WinnerPanel
-                  busyAction={busyAction}
-                  debate={activeDebate}
-                  onPickWinner={handlePickWinner}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </section>
-
-        <aside className="side-column">
-          {activeDebate && debateDetail ? (
-            <>
-              <SourceRail
-                highlightedSourceId={highlightedSourceId}
-                packets={debateDetail.packets}
-                sources={debateDetail.sources}
-              />
-              <EventTimeline events={debateDetail.events} />
-            </>
-          ) : (
-            <section className="panel notes-panel">
-              <div className="panel-heading">
-                <span className="eyebrow">Important elements only</span>
-                <h2>What this UI keeps from the prototype</h2>
-              </div>
-              <ul className="notes-list">
-                <li>One strong headline card instead of separate slides.</li>
-                <li>Red and blue opposition cues for pro and con structure.</li>
-                <li>Large editorial panels for transcript, evidence, and result states.</li>
-                <li>Live backend state rather than placeholder copy.</li>
-              </ul>
-            </section>
           )}
-        </aside>
-      </main>
+          <SourceRail
+            sources={sources}
+            highlightedSourceId={highlightedSourceId}
+            onSourceHover={setHighlightedSourceId}
+          />
+        </div>
+      )}
     </div>
-  );
+  )
 }

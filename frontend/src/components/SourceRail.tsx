@@ -1,67 +1,62 @@
-import { formatPercent, formatSide, sourceAccent } from "../formatters";
-import type { EvidencePacket, SourceCard } from "../types";
+import type { SourceCard } from '../types'
 
-interface SourceRailProps {
-  packets: EvidencePacket[];
-  sources: SourceCard[];
-  highlightedSourceId: string | null;
+
+function StarRating({ score }: { score: number }) {
+  const filled = Math.round(score * 5)
+  return (
+    <span className="source-stars" aria-label={`Trust: ${Math.round(score * 100)}%`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span key={i} style={{ color: i < filled ? '#f59e0b' : 'rgba(255,255,255,0.2)' }}>
+          ★
+        </span>
+      ))}
+    </span>
+  )
 }
 
-export function SourceRail({ packets, sources, highlightedSourceId }: SourceRailProps) {
+interface Props {
+  sources: SourceCard[]
+  highlightedSourceId: string | null
+  onSourceHover: (sourceId: string | null) => void
+}
+
+export function SourceRail({ sources, highlightedSourceId, onSourceHover }: Props) {
+  if (sources.length === 0) return null
+
   return (
-    <section className="panel source-panel">
-      <div className="panel-heading">
-        <span className="eyebrow">Evidence rail</span>
-        <h2>Sources and side packets</h2>
-        <p>The debate shares one source pool, then splits it into argument packets for each side.</p>
+    <div className="source-rail-wrapper">
+      <div className="source-rail-header">
+        <span className="source-rail-title">SOURCES</span>
+        <span className="source-count">{sources.length}</span>
       </div>
-
-      <div className="packet-grid">
-        {packets.map((packet) => (
-          <article className={`packet-card packet-card--${packet.side}`} key={packet.packet_id}>
-            <header>
-              <span className={`side-pill side-pill--${packet.side}`}>{formatSide(packet.side)}</span>
-              <strong>{packet.source_ids.length} linked sources</strong>
-            </header>
-            <p>{packet.resolution}</p>
-            {packet.key_claims.length > 0 ? (
-              <ul>
-                {packet.key_claims.map((claim) => (
-                  <li key={claim}>{claim}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted-copy">Claims are generated inside the packet but not yet exposed in this run.</p>
-            )}
-          </article>
-        ))}
+      <div className="source-rail-scroll">
+        {sources.map(source => {
+          const num = source.source_id.match(/\d+/)?.[0] ?? source.source_id
+          return (
+            <a
+              key={source.source_id}
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`source-card ${highlightedSourceId === source.source_id ? 'highlighted-pro' : ''}`}
+              onMouseEnter={() => onSourceHover(source.source_id)}
+              onMouseLeave={() => onSourceHover(null)}
+              title={source.summary}
+            >
+              <div className="source-card-title">
+                <span className="source-card-num">[{num}]</span> {source.title}
+              </div>
+              <div className="source-card-pub">{source.publisher}</div>
+              <div className="source-card-meta">
+                <span className={`source-type-badge ${source.source_type}`}>
+                  {source.source_type}
+                </span>
+                <StarRating score={source.trust_score} />
+              </div>
+            </a>
+          )
+        })}
       </div>
-
-      <div className="source-list">
-        {sources.map((source) => (
-          <a
-            className={`source-card source-card--${sourceAccent(source)} ${
-              highlightedSourceId === source.source_id ? "is-highlighted" : ""
-            }`}
-            data-source-id={source.source_id}
-            href={source.url}
-            key={source.source_id}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <div className="source-card__topline">
-              <span>{source.publisher}</span>
-              <span>{source.source_type}</span>
-            </div>
-            <h3>{source.title}</h3>
-            <p>{source.summary}</p>
-            <div className="source-card__scores">
-              <span>Trust {formatPercent(source.trust_score)}</span>
-              <span>Relevance {formatPercent(source.relevance_score)}</span>
-            </div>
-          </a>
-        ))}
-      </div>
-    </section>
-  );
+    </div>
+  )
 }

@@ -15,6 +15,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GROQ_API_KEY", "DEBATE_GROQ_API_KEY"),
     )
     groq_model: str = "llama-3.3-70b-versatile"
+    google_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "GOOGLE_API_KEY",
+            "GEMINI_API_KEY",
+            "DEBATE_GOOGLE_API_KEY",
+            "DEBATE_GEMINI_API_KEY",
+        ),
+    )
+    gemini_model: str = "gemini-3-flash-preview"
     enable_live_generation: bool = True
     enable_live_retrieval: bool = True
     generation_retry_limit: int = 3
@@ -25,6 +35,7 @@ class Settings(BaseSettings):
     packet_min_size: int = 3
     retrieval_timeout_seconds: float = 10.0
     retrieval_connect_timeout_seconds: float = 5.0
+    enable_tts: bool = True
     sse_poll_interval_seconds: float = 1.0
     character_limit_opening: int = 1200
     character_limit_crossfire_questions: int = 300
@@ -67,9 +78,10 @@ class Settings(BaseSettings):
         }
 
     def validate_runtime(self) -> None:
-        if self.enable_live_generation and not self.groq_api_key:
+        if self.enable_live_generation and not self.groq_api_key and not self.google_api_key:
             raise RuntimeError(
-                "GROQ_API_KEY (or DEBATE_GROQ_API_KEY) is required when live generation is enabled"
+                "A generation API key is required when live generation is enabled. "
+                "Set GROQ_API_KEY/DEBATE_GROQ_API_KEY or GOOGLE_API_KEY/DEBATE_GOOGLE_API_KEY."
             )
 
 

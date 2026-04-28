@@ -220,6 +220,16 @@ class DebateRepository:
             ).fetchall()
         return [DebateSide(row["side"]) for row in rows]
 
+    def get_transcript_entry(self, debate_id: str, entry_id: str) -> TranscriptEntry | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                "SELECT payload FROM transcript_entries WHERE debate_id = ? AND entry_id = ?",
+                (debate_id, entry_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return TranscriptEntry.model_validate_json(row["payload"])
+
     def get_transcript(self, debate_id: str) -> list[TranscriptEntry]:
         with self.connection() as conn:
             rows = conn.execute(

@@ -2,7 +2,7 @@ import asyncio
 import json
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from app.core.settings import settings
 from app.models.debate import (
@@ -16,10 +16,12 @@ from app.models.debate import (
 from app.models.event import DebateEvent
 from app.services.execution_service import DebateExecutionService
 from app.services.orchestrator import DebateOrchestrator
+from app.services.tts_service import TTSService
 
 router = APIRouter(prefix="/debates", tags=["debates"])
 orchestrator = DebateOrchestrator()
 execution_service = DebateExecutionService(orchestrator)
+tts_service = TTSService()
 
 
 @router.post("", response_model=DebateSummary, status_code=status.HTTP_201_CREATED)
@@ -99,6 +101,20 @@ async def stream_debate_events(debate_id: str) -> StreamingResponse:
             await asyncio.sleep(settings.sse_poll_interval_seconds)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/{debate_id}/transcript/{entry_id}/audio")
+def get_transcript_audio(debate_id: str, entry_id: str) -> Response:
+    if not settings.enable_tts:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="TTS is disabled")
+    entry = orchestrator.repository.get_transcript_entry(debate_id, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transcript entry not found")
+    try:
+        audio = tts_service.synthesize(entry_id, entry.text, entry.side)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"TTS unavailable: {exc}") from exc
+    return Response(content=audio, media_type="audio/mpeg")
 
 
 @router.get("/{debate_id}/sources/{source_id}", response_model=SourceDetailResponse)

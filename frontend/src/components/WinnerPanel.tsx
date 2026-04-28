@@ -1,53 +1,94 @@
-import { formatSide } from "../formatters";
-import type { DebateSide, DebateSummary } from "../types";
+import { useMemo } from 'react'
+import { CrownIcon, ScalesIcon } from '@phosphor-icons/react'
+import { BoxingGloveIcon } from './BoxingGloveIcon'
+import type { DebateSide, DebateSummary } from '../types'
+import { pickWinner } from '../api'
 
-interface WinnerPanelProps {
-  debate: DebateSummary;
-  busyAction: string | null;
-  onPickWinner: (winnerSide: DebateSide) => void;
-}
-
-export function WinnerPanel({ debate, busyAction, onPickWinner }: WinnerPanelProps) {
-  const winner = debate.winner_side;
+function ConfettiParticles() {
+  const particles = useMemo(() => {
+    const confettiColors = ['#dc2626', '#2563eb', '#f59e0b', '#22c55e', '#e879f9', '#fb923c']
+    return Array.from({ length: 24 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+      delay: Math.random() * 1.5,
+      duration: 1.2 + Math.random() * 1,
+      size: 5 + Math.random() * 6,
+    }))
+  }, [])
 
   return (
-    <section className="panel winner-panel">
-      <div className="panel-heading">
-        <span className="eyebrow">Page 6 adapted into the finish state</span>
-        <h2>Choose the winner</h2>
-        <p>
-          The debate is finished. Pick the side that argued the case best, or review the transcript
-          and evidence again before deciding.
-        </p>
-      </div>
+    <div className="confetti-wrap" aria-hidden="true">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="confetti-particle"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.size,
+            background: p.color,
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
-      <div className="winner-actions">
-        {(["pro", "con"] as const).map((side) => {
-          const isWinner = winner === side;
-          return (
-            <button
-              className={`winner-button winner-button--${side} ${isWinner ? "is-selected" : ""}`}
-              disabled={busyAction === "winner" || winner !== null}
-              key={side}
-              onClick={() => onPickWinner(side)}
-            >
-              {isWinner ? `${formatSide(side)} selected` : `Select ${formatSide(side)}`}
-            </button>
-          );
-        })}
-      </div>
+interface Props {
+  debate: DebateSummary
+  onPickWinner: (debate: DebateSummary) => void
+  onNewDebate: () => void
+}
 
-      {winner ? (
-        <div className="winner-summary">
-          <strong>{formatSide(winner)} wins.</strong>
-          {debate.winning_animation_state ? (
-            <p>
-              Animation: {debate.winning_animation_state.animation} with{" "}
-              {debate.winning_animation_state.winner_pose}.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  );
+export function WinnerPanel({ debate, onPickWinner, onNewDebate }: Props) {
+  const winner = debate.winner_side
+
+  async function handlePick(side: DebateSide) {
+    try {
+      const updated = await pickWinner(debate.debate_id, side)
+      onPickWinner(updated)
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div className={`winner-bar ${winner ?? 'neutral'}`}>
+      {winner && <ConfettiParticles />}
+
+      <div className="winner-bar-inner">
+        {winner ? (
+          <>
+            <span className="winner-bar-crown"><CrownIcon size={28} weight="fill" /></span>
+            <div className="winner-bar-text">
+              <span className="winner-bar-label">WINNER BY DECISION</span>
+              <span className={`winner-bar-name ${winner}`}>{winner.toUpperCase()}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <ScalesIcon size={22} weight="fill" />
+            <div className="winner-bar-text">
+              <span className="winner-bar-label">DEBATE COMPLETE — WHO WON?</span>
+            </div>
+            <div className="winner-pick-buttons">
+              <button className="btn-pick-pro" onClick={() => void handlePick('pro')}>
+                <BoxingGloveIcon size={16} side="pro" /> PRO
+              </button>
+              <button className="btn-pick-con" onClick={() => void handlePick('con')}>
+                CON <BoxingGloveIcon size={16} side="con" />
+              </button>
+            </div>
+          </>
+        )}
+
+        <button className="winner-new-btn" onClick={onNewDebate}>
+          + NEW DEBATE
+        </button>
+      </div>
+    </div>
+  )
 }

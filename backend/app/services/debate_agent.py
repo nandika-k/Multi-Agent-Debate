@@ -7,6 +7,7 @@ from app.models.common import DebateSide, RoundType
 from app.models.generation import GeneratedRound, SourceUsage
 from app.models.source import SourceCard, EvidencePacket
 from app.models.transcript import TranscriptEntry
+from app.services.gemini_fallback import build_gemini_client, extract_json_payload
 
 
 def get_character_limits() -> dict[RoundType, int]:
@@ -15,7 +16,8 @@ def get_character_limits() -> dict[RoundType, int]:
 
 class DebateAgent:
     def __init__(self) -> None:
-        self.client = None
+        self._groq_client = None
+        self._gemini_client = None
 
     def generate_round(
         self,
@@ -30,10 +32,70 @@ class DebateAgent:
         if not settings.enable_live_generation:
             return self._stub_round(side, round_type, resolution, packet_sources)
 
-        client = self._get_client()
         char_limit = get_character_limits()[round_type]
         schema = GeneratedRound.model_json_schema()
         schema["properties"]["text"]["maxLength"] = char_limit
+        if settings.groq_api_key:
+            try:
+                return self._generate_round_with_groq(
+                    side=side,
+                    round_type=round_type,
+                    resolution=resolution,
+                    packet=packet,
+                    packet_sources=packet_sources,
+                    transcript=transcript,
+                    validation_feedback=validation_feedback,
+                    schema=schema,
+                    char_limit=char_limit,
+                )
+            except Exception:
+                if not settings.google_api_key:
+                    raise
+
+        if settings.google_api_key:
+            return self._generate_round_with_gemini(
+                side=side,
+                round_type=round_type,
+                resolution=resolution,
+                packet=packet,
+                packet_sources=packet_sources,
+                transcript=transcript,
+                validation_feedback=validation_feedback,
+                schema=schema,
+                char_limit=char_limit,
+            )
+
+        raise ValueError("No live generation provider is configured")
+
+    def _get_groq_client(self) -> Groq:
+        if self._groq_client is not None:
+            return self._groq_client
+        if not settings.groq_api_key:
+            raise ValueError("GROQ_API_KEY is not configured")
+        self._groq_client = Groq(api_key=settings.groq_api_key)
+        return self._groq_client
+
+    def _get_gemini_client(self):
+        if self._gemini_client is not None:
+            return self._gemini_client
+        if not settings.google_api_key:
+            raise ValueError("GOOGLE_API_KEY is not configured")
+        self._gemini_client = build_gemini_client(settings.google_api_key)
+        return self._gemini_client
+
+    def _generate_round_with_groq(
+        self,
+        side: DebateSide,
+        round_type: RoundType,
+        resolution: str,
+        packet: EvidencePacket,
+        packet_sources: list[SourceCard],
+        transcript: list[TranscriptEntry],
+        validation_feedback: str | None,
+        schema: dict,
+        char_limit: int,
+    ) -> GeneratedRound:
+        client = self._get_groq_client()
         response = client.chat.completions.create(
             model=settings.groq_model,
             max_tokens=char_limit // 4 + 350,
@@ -62,13 +124,30 @@ class DebateAgent:
         args = response.choices[0].message.tool_calls[0].function.arguments
         return GeneratedRound.model_validate_json(args)
 
-    def _get_client(self) -> Groq:
-        if self.client is not None:
-            return self.client
-        if not settings.groq_api_key:
-            raise ValueError("GROQ_API_KEY is not configured")
-        self.client = Groq(api_key=settings.groq_api_key)
-        return self.client
+    def _generate_round_with_gemini(
+        self,
+        side: DebateSide,
+        round_type: RoundType,
+        resolution: str,
+        packet: EvidencePacket,
+        packet_sources: list[SourceCard],
+        transcript: list[TranscriptEntry],
+        validation_feedback: str | None,
+        schema: dict,
+        char_limit: int,
+    ) -> GeneratedRound:
+        client = self._get_gemini_client()
+        prompt = (
+            f"{self._system_prompt(round_type)}\n\n"
+            f"{self._user_prompt(side, round_type, resolution, packet, packet_sources, transcript, validation_feedback)}\n\n"
+            f"Return only a JSON object that matches this schema: {json.dumps(schema)}\n"
+            f"Keep text within {char_limit} characters."
+        )
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+        )
+        return GeneratedRound.model_validate_json(extract_json_payload(response.text))
 
     def _stub_round(
         self,
