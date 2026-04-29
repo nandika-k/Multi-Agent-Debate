@@ -10,3 +10,5 @@ frontend/.vitest/
 .env
 .claude
 *test*
+backend/test*
+backend/tests/test_backend.py

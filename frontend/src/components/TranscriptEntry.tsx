@@ -14,6 +14,10 @@ function formatTime(iso: string): string {
   }
 }
 
+function formatCitationLabel(sourceId: string): string {
+  return sourceId.match(/\d+/)?.[0] ?? sourceId
+}
+
 interface Props {
   entry: TEntry
   sources: SourceCard[]
@@ -117,7 +121,7 @@ export function TranscriptEntry({
 
       {entry.citations.length > 0 && !isTyping && (
         <div className="entry-citations">
-          {entry.citations.map((sourceId, i) => {
+          {entry.citations.map(sourceId => {
             const source = sources.find(s => s.source_id === sourceId)
             return (
               <span
@@ -127,7 +131,7 @@ export function TranscriptEntry({
                 onMouseLeave={() => onCitationHover(null)}
                 title={source?.title ?? sourceId}
               >
-                [{i + 1}] {source?.publisher ?? ''}
+                [{formatCitationLabel(sourceId)}] {source?.publisher ?? ''}
               </span>
             )
           })}

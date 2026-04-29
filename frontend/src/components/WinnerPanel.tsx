@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { CrownIcon, ScalesIcon } from '@phosphor-icons/react'
+import { CrownIcon } from '@phosphor-icons/react'
+import { ArenaScales } from './ArenaIcons'
 import { BoxingGloveIcon } from './BoxingGloveIcon'
 import type { DebateSide, DebateSummary } from '../types'
 import { pickWinner } from '../api'
@@ -70,7 +71,7 @@ export function WinnerPanel({ debate, onPickWinner, onNewDebate }: Props) {
           </>
         ) : (
           <>
-            <ScalesIcon size={22} weight="fill" />
+            <ArenaScales size={22} />
             <div className="winner-bar-text">
               <span className="winner-bar-label">DEBATE COMPLETE — WHO WON?</span>
             </div>

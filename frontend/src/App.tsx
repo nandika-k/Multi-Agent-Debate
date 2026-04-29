@@ -139,15 +139,22 @@ export default function App() {
         </div>
       ) : (
         <div className="arena-wrapper">
-          <BoxingRing
-            transcript={transcript}
-            sources={sources}
-            currentRound={currentRound}
-            newEntryIds={newEntryIds}
-            voiceReadingEnabled={voiceReadingEnabled}
-            highlightedSourceId={highlightedSourceId}
-            onCitationHover={handleCitationHover}
-          />
+          <div className="arena-main">
+            <BoxingRing
+              transcript={transcript}
+              sources={sources}
+              currentRound={currentRound}
+              newEntryIds={newEntryIds}
+              voiceReadingEnabled={voiceReadingEnabled}
+              highlightedSourceId={highlightedSourceId}
+              onCitationHover={handleCitationHover}
+            />
+            <SourceRail
+              sources={sources}
+              highlightedSourceId={highlightedSourceId}
+              onSourceHover={setHighlightedSourceId}
+            />
+          </div>
           {isCompleted && effectiveDebate && (
             <WinnerPanel
               debate={effectiveDebate}
@@ -155,11 +162,6 @@ export default function App() {
               onNewDebate={handleNewDebate}
             />
           )}
-          <SourceRail
-            sources={sources}
-            highlightedSourceId={highlightedSourceId}
-            onSourceHover={setHighlightedSourceId}
-          />
         </div>
       )}
     </div>

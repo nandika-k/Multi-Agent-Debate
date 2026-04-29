@@ -38,7 +38,7 @@ export function SourceRail({ sources, highlightedSourceId, onSourceHover }: Prop
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`source-card ${highlightedSourceId === source.source_id ? 'highlighted-pro' : ''}`}
+              className={`source-card ${highlightedSourceId === source.source_id ? 'highlighted-source' : ''}`}
               onMouseEnter={() => onSourceHover(source.source_id)}
               onMouseLeave={() => onSourceHover(null)}
               title={source.summary}

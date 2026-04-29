@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { BellIcon, HourglassIcon, WarningIcon } from '@phosphor-icons/react'
+import { HourglassIcon } from '@phosphor-icons/react'
+import { ArenaBang } from './ArenaIcons'
+import { Icons8Bell } from './Icons8Bell'
 import { BoxingGloveIcon } from './BoxingGloveIcon'
 import { createDebate } from '../api'
 import type { DebateSummary } from '../types'
@@ -10,10 +12,8 @@ interface Props {
 
 const TOPIC_SUGGESTIONS = [
   'Social media does more harm than good',
-  'Universal Basic Income should be implemented',
-  'Artificial Intelligence poses an existential risk',
-  'Space exploration is worth the cost',
-  'Nuclear energy is the best solution to climate change',
+  'GMOs are safe and beneficial for society',
+  'College education should be free for everyone'
 ]
 
 export function TopicComposer({ onDebateCreated }: Props) {
@@ -79,10 +79,10 @@ export function TopicComposer({ onDebateCreated }: Props) {
         </div>
 
         <button className="composer-btn" type="submit" disabled={loading || !topic.trim()}>
-          {loading ? <><HourglassIcon size={16} /> CREATING…</> : <><BellIcon size={16} weight="fill" /> DING DING!</>}
+          {loading ? <><HourglassIcon size={16} /> CREATING…</> : <><Icons8Bell size={16} color="#F5A623" /> DING DING!</>}
         </button>
 
-        {error && <div className="composer-error"><WarningIcon size={15} weight="fill" /> {error}</div>}
+        {error && <div className="composer-error"><ArenaBang size={15} /> {error}</div>}
       </form>
 
       <div
@@ -102,23 +102,24 @@ export function TopicComposer({ onDebateCreated }: Props) {
             disabled={loading}
             style={{
               padding: '5px 12px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 99,
-              color: 'var(--text-dim)',
+              background: 'transparent',
+              border: '2px solid rgba(0,0,0,0.22)',
+              borderRadius: '999px',
+              color: 'var(--text-mid)',
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'none',
               fontFamily: 'var(--font-body)',
+              letterSpacing: '0.5px',
             }}
             onMouseEnter={e => {
               ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-bright)'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.25)'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.40)'
             }}
             onMouseLeave={e => {
-              ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-dim)'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.1)'
+              ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-mid)'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.22)'
             }}
           >
             {s}
