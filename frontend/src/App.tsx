@@ -113,7 +113,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <StatusBanner
-        topic={effectiveDebate?.topic_raw ?? null}
+        topic={effectiveDebate?.resolution_final ?? effectiveDebate?.topic_raw ?? null}
         status={effectiveDebate?.status ?? null}
         currentRound={currentRound}
         voiceReadingEnabled={voiceReadingEnabled}

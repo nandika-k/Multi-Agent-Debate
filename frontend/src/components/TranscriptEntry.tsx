@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { SourceCard, TranscriptEntry as TEntry } from '../types'
 import { RoundBadge } from './RoundBadge'
 
 const CHARS_PER_TICK = 6
 const TICK_MS = 16
+const FALLBACK_CHARS_PER_SECOND = 16
+const FALLBACK_CHARS_PER_TICK = Math.max(1, Math.ceil(FALLBACK_CHARS_PER_SECOND * (TICK_MS / 1000)))
 
 function formatTime(iso: string): string {
   try {
@@ -18,66 +20,103 @@ function formatCitationLabel(sourceId: string): string {
   return sourceId.match(/\d+/)?.[0] ?? sourceId
 }
 
+function buildSpeechSyncState(rawText: string) {
+  const citationPattern = /\[S(\d+)\]/g
+  let cleanText = ''
+  let displayText = ''
+  const charMap: number[] = []
+  let cursor = 0
+  let match: RegExpExecArray | null
+
+  while ((match = citationPattern.exec(rawText)) !== null) {
+    const segment = rawText.slice(cursor, match.index)
+    for (const char of segment) {
+      cleanText += char
+      displayText += char
+      charMap.push(displayText.length)
+    }
+
+    displayText += `[${match[1]}]`
+    cursor = match.index + match[0].length
+  }
+
+  const trailing = rawText.slice(cursor)
+  for (const char of trailing) {
+    cleanText += char
+    displayText += char
+    charMap.push(displayText.length)
+  }
+
+  return { cleanText: cleanText.trim(), displayText, charMap }
+}
+
 interface Props {
   entry: TEntry
   sources: SourceCard[]
-  isNew: boolean
+  shouldAnimate: boolean
   voiceReadingEnabled: boolean
   highlightedSourceId: string | null
   onCitationHover: (sourceId: string | null) => void
+  onPlaybackComplete?: (entryId: string) => void
 }
 
 export function TranscriptEntry({
   entry,
   sources,
-  isNew,
+  shouldAnimate,
   voiceReadingEnabled,
   highlightedSourceId,
   onCitationHover,
+  onPlaybackComplete,
 }: Props) {
-  const wasNewRef = useRef(isNew)
-  const [displayedChars, setDisplayedChars] = useState(isNew ? 0 : entry.text.length)
-  const [isTyping, setIsTyping] = useState(isNew)
+  const speechState = useMemo(() => buildSpeechSyncState(entry.text), [entry.text])
+  const [displayedChars, setDisplayedChars] = useState(shouldAnimate ? 0 : speechState.displayText.length)
+  const [isTyping, setIsTyping] = useState(shouldAnimate)
+  const onPlaybackCompleteRef = useRef(onPlaybackComplete)
+  useEffect(() => { onPlaybackCompleteRef.current = onPlaybackComplete })
 
   useEffect(() => {
-    const wasNew = wasNewRef.current
-    if (!wasNew) {
-      setDisplayedChars(entry.text.length)
+    if (!shouldAnimate) {
+      setDisplayedChars(speechState.displayText.length)
       setIsTyping(false)
       return
     }
 
-    setDisplayedChars(0)
-    setIsTyping(true)
-
-    const id = setInterval(() => {
-      setDisplayedChars(prev => {
-        const next = Math.min(prev + CHARS_PER_TICK, entry.text.length)
-        if (next >= entry.text.length) {
-          clearInterval(id)
-          setIsTyping(false)
-        }
-        return next
-      })
-    }, TICK_MS)
-
-    return () => clearInterval(id)
-  }, [entry.entry_id, entry.text.length])
-
-  useEffect(() => {
     if (!voiceReadingEnabled) {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-      }
+      setDisplayedChars(0)
+      setIsTyping(true)
+
+      const id = setInterval(() => {
+        setDisplayedChars(prev => {
+          const next = Math.min(prev + CHARS_PER_TICK, speechState.displayText.length)
+          if (next >= speechState.displayText.length) {
+            clearInterval(id)
+            setIsTyping(false)
+            onPlaybackCompleteRef.current?.(entry.entry_id)
+          }
+          return next
+        })
+      }, TICK_MS)
+
+      return () => clearInterval(id)
+    }
+
+    if (!window.speechSynthesis || !speechState.cleanText) {
+      setDisplayedChars(speechState.displayText.length)
+      setIsTyping(false)
+      onPlaybackComplete?.(entry.entry_id)
       return
     }
-    if (!wasNewRef.current) return
-    if (!window.speechSynthesis) return
 
-    const cleanText = entry.text.replace(/\[S\d+\]/g, '').trim()
-    if (!cleanText) return
+    let cancelled = false
+    let boundarySeen = false
+    let fallbackTimer: number | null = null
 
-    const utterance = new SpeechSynthesisUtterance(cleanText)
+    setDisplayedChars(0)
+    setIsTyping(true)
+    window.speechSynthesis.cancel()
+
+    const utterance = new SpeechSynthesisUtterance(speechState.cleanText)
     utterance.rate = 0.92
     utterance.pitch = entry.side === 'pro' ? 0.82 : 1.18
 
@@ -92,6 +131,28 @@ export function TranscriptEntry({
       if (picked) utterance.voice = picked
     }
 
+    const finish = () => {
+      if (cancelled) return
+      cancelled = true
+      if (fallbackTimer !== null) {
+        window.clearInterval(fallbackTimer)
+      }
+      setDisplayedChars(speechState.displayText.length)
+      setIsTyping(false)
+      onPlaybackComplete?.(entry.entry_id)
+    }
+
+    utterance.onboundary = event => {
+      if (event.name && event.name !== 'word' && event.name !== 'sentence') return
+      boundarySeen = true
+      const index = Math.max(0, Math.min(event.charIndex, speechState.charMap.length - 1))
+      const nextChars = speechState.charMap[index] ?? speechState.displayText.length
+      setDisplayedChars(prev => Math.max(prev, nextChars))
+    }
+
+    utterance.onend = finish
+    utterance.onerror = finish
+
     if (window.speechSynthesis.getVoices().length > 0) {
       applyVoice()
     } else {
@@ -100,12 +161,24 @@ export function TranscriptEntry({
 
     window.speechSynthesis.speak(utterance)
 
+    fallbackTimer = window.setInterval(() => {
+      if (boundarySeen) return
+      setDisplayedChars(prev => {
+        const next = Math.min(prev + FALLBACK_CHARS_PER_TICK, speechState.displayText.length)
+        return next
+      })
+    }, TICK_MS)
+
     return () => {
+      cancelled = true
+      if (fallbackTimer !== null) {
+        window.clearInterval(fallbackTimer)
+      }
       window.speechSynthesis.cancel()
     }
-  }, [entry.entry_id, entry.side, entry.text, voiceReadingEnabled])
+  }, [entry.entry_id, entry.side, shouldAnimate, speechState, voiceReadingEnabled])
 
-  const displayedText = entry.text.slice(0, displayedChars).replace(/\[S(\d+)\]/g, '[$1]')
+  const displayedText = speechState.displayText.slice(0, displayedChars)
 
   return (
     <div className={`transcript-entry ${entry.side} ${isTyping ? 'typing' : ''}`}>

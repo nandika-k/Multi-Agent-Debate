@@ -929,8 +929,8 @@ body {
 .art-fighters {
   position: absolute;
   bottom: 80px;
-  left: 20px;
-  right: 20px;
+  left: 54px;
+  right: 54px;
   display: flex;
   justify-content: space-between;
   font-size: 40px;
