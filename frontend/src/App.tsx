@@ -1,6 +1,43 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
-import type { DebateSummary } from './types'
+import type { DebateSide, DebateSummary, RoundType } from './types'
+
+const PRO_COLORS = ['#8b3535', '#b04040', '#c75555', '#d4637a', '#e89090', '#f0b8b0']
+const CON_COLORS = ['#2b3666', '#3d4f8a', '#4a6aa8', '#6080c0', '#8090d0', '#a0aee0']
+
+function FullscreenConfetti({ side }: { side: DebateSide }) {
+  const particles = useMemo(() => {
+    const colors = side === 'pro' ? PRO_COLORS : CON_COLORS
+    return Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 3.5,
+      duration: 2.8 + Math.random() * 2.2,
+      width: 5 + Math.random() * 9,
+      height: 6 + Math.random() * 14,
+    }))
+  }, [side])
+
+  return (
+    <div className="confetti-fullscreen" aria-hidden="true">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="confetti-full-particle"
+          style={{
+            left: `${p.left}%`,
+            width: p.width,
+            height: p.height,
+            background: p.color,
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 import { BoxingRing } from './components/BoxingRing'
 import { ResolutionEditor } from './components/ResolutionEditor'
 import { SourceRail } from './components/SourceRail'
@@ -17,6 +54,8 @@ export default function App() {
   const [pendingDebate, setPendingDebate] = useState<DebateSummary | null>(null)
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null)
   const [voiceReadingEnabled, setVoiceReadingEnabled] = useState(true)
+  const [visibleRound, setVisibleRound] = useState<RoundType | null>(null)
+  const [playbackActive, setPlaybackActive] = useState(false)
 
   const {
     debate,
@@ -57,10 +96,20 @@ export default function App() {
     setDebateId(null)
     setView('topic')
     setHighlightedSourceId(null)
+    setVisibleRound(null)
+    setPlaybackActive(false)
   }
 
   const handleCitationHover = useCallback((sourceId: string | null) => {
     setHighlightedSourceId(sourceId)
+  }, [])
+
+  const handleVisibleRoundChange = useCallback((round: RoundType | null) => {
+    setVisibleRound(round)
+  }, [])
+
+  const handlePlaybackActiveChange = useCallback((active: boolean) => {
+    setPlaybackActive(active)
   }, [])
 
   const isResearching = effectiveDebate?.status === 'researching'
@@ -112,10 +161,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {!playbackActive && effectiveDebate?.winner_side && (
+        <FullscreenConfetti side={effectiveDebate.winner_side} />
+      )}
       <StatusBanner
         topic={effectiveDebate?.resolution_final ?? effectiveDebate?.topic_raw ?? null}
-        status={effectiveDebate?.status ?? null}
-        currentRound={currentRound}
+        status={playbackActive && effectiveDebate?.status === 'completed' ? 'in_progress' : (effectiveDebate?.status ?? null)}
+        currentRound={visibleRound ?? currentRound}
         voiceReadingEnabled={voiceReadingEnabled}
         onToggleVoiceReading={() => setVoiceReadingEnabled(enabled => !enabled)}
       />
@@ -148,6 +200,8 @@ export default function App() {
               voiceReadingEnabled={voiceReadingEnabled}
               highlightedSourceId={highlightedSourceId}
               onCitationHover={handleCitationHover}
+              onVisibleRoundChange={handleVisibleRoundChange}
+              onPlaybackActiveChange={handlePlaybackActiveChange}
             />
             <SourceRail
               sources={sources}
@@ -155,7 +209,7 @@ export default function App() {
               onSourceHover={setHighlightedSourceId}
             />
           </div>
-          {isCompleted && effectiveDebate && (
+          {isCompleted && !playbackActive && effectiveDebate && (
             <WinnerPanel
               debate={effectiveDebate}
               onPickWinner={handlePickWinner}

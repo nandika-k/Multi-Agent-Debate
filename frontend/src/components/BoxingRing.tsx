@@ -9,6 +9,8 @@ interface Props {
   voiceReadingEnabled: boolean
   highlightedSourceId: string | null
   onCitationHover: (sourceId: string | null) => void
+  onVisibleRoundChange?: (round: RoundType | null) => void
+  onPlaybackActiveChange?: (active: boolean) => void
 }
 
 function RopeSet({ variant }: { variant: 'pro' | 'con' }) {
@@ -29,6 +31,8 @@ export function BoxingRing({
   voiceReadingEnabled,
   highlightedSourceId,
   onCitationHover,
+  onVisibleRoundChange,
+  onPlaybackActiveChange,
 }: Props) {
   return (
     <div className="ring-container">
@@ -42,6 +46,8 @@ export function BoxingRing({
           voiceReadingEnabled={voiceReadingEnabled}
           highlightedSourceId={highlightedSourceId}
           onCitationHover={onCitationHover}
+          onVisibleRoundChange={onVisibleRoundChange}
+          onPlaybackActiveChange={onPlaybackActiveChange}
         />
       </div>
       <RopeSet variant="con" />

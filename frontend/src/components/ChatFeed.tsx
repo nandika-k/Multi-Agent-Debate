@@ -11,6 +11,8 @@ interface Props {
   voiceReadingEnabled: boolean
   highlightedSourceId: string | null
   onCitationHover: (sourceId: string | null) => void
+  onVisibleRoundChange?: (round: RoundType | null) => void
+  onPlaybackActiveChange?: (active: boolean) => void
 }
 
 export function ChatFeed({
@@ -21,6 +23,8 @@ export function ChatFeed({
   voiceReadingEnabled,
   highlightedSourceId,
   onCitationHover,
+  onVisibleRoundChange,
+  onPlaybackActiveChange,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
@@ -103,6 +107,23 @@ export function ChatFeed({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [revealedIds.length, activeEntryId])
+
+  useEffect(() => {
+    onPlaybackActiveChange?.(activeEntryId !== null || queuedIds.length > 0)
+  }, [activeEntryId, queuedIds, onPlaybackActiveChange])
+
+  useEffect(() => {
+    if (!onVisibleRoundChange) return
+    const activeEntry = activeEntryId ? transcript.find(e => e.entry_id === activeEntryId) : null
+    if (activeEntry) {
+      onVisibleRoundChange(activeEntry.round_type)
+      return
+    }
+    const lastRevealed = revealedIds.length > 0
+      ? transcript.find(e => e.entry_id === revealedIds[revealedIds.length - 1])
+      : null
+    onVisibleRoundChange(lastRevealed?.round_type ?? null)
+  }, [activeEntryId, revealedIds, transcript, onVisibleRoundChange])
 
   const visibleEntries = useMemo(() => {
     const revealedSet = new Set(revealedIds)
