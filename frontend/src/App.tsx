@@ -66,7 +66,12 @@ export default function App() {
     newEntryIds,
   } = useDebateStream(view === 'debate' ? debateId : null)
 
-  const effectiveDebate = debate ?? pendingDebate
+  const effectiveDebate = useMemo(() => {
+    const base = debate ?? pendingDebate
+    if (!base) return null
+    const winner_side = base.winner_side ?? pendingDebate?.winner_side ?? null
+    return winner_side !== base.winner_side ? { ...base, winner_side } : base
+  }, [debate, pendingDebate])
   const isCompleted = effectiveDebate?.status === 'completed'
   const isFailed = effectiveDebate?.status === 'failed' || view === 'failed'
 

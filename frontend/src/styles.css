@@ -473,8 +473,8 @@ body {
   color: var(--text-dim);
 }
 
-.chat-row.pro .chat-side-label { color: var(--pro-light); }
-.chat-row.con .chat-side-label { color: var(--con-light); }
+.chat-row.pro .chat-side-label { color: #ff9090; }
+.chat-row.con .chat-side-label { color: #90baff; }
 
 .chat-row.pro .transcript-entry {
   border-radius: 2px var(--radius-md) var(--radius-md) var(--radius-md);
