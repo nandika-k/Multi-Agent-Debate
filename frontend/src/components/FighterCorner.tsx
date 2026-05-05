@@ -62,7 +62,7 @@ export function FighterCorner({
               key={entry.entry_id}
               entry={entry}
               sources={sources}
-              isNew={newEntryIds.includes(entry.entry_id)}
+              shouldAnimate={newEntryIds.includes(entry.entry_id)}
               voiceReadingEnabled={voiceReadingEnabled}
               highlightedSourceId={highlightedSourceId}
               onCitationHover={onCitationHover}
