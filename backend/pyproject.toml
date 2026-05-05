@@ -25,6 +25,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+exclude = ["api*", "tests*"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
