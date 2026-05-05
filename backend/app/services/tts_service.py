@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 
 from app.models.common import DebateSide
 
 try:
+    import google.auth.credentials
     from google.cloud import texttospeech
+    from google.oauth2 import service_account
 except (ModuleNotFoundError, ImportError):  # pragma: no cover - depends on optional install
     texttospeech = None
+    service_account = None
 
 _CITATION_RE = re.compile(r"\[S\d+\]")
 
@@ -50,10 +55,18 @@ class TTSService:
             )
         if self._client is None:
             try:
-                self._client = texttospeech.TextToSpeechClient()
+                creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+                if creds_json:
+                    info = json.loads(creds_json)
+                    creds = service_account.Credentials.from_service_account_info(
+                        info,
+                        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    )
+                    self._client = texttospeech.TextToSpeechClient(credentials=creds)
+                else:
+                    self._client = texttospeech.TextToSpeechClient()
             except Exception as exc:
                 raise RuntimeError(
-                    f"Google Cloud TTS client failed to initialise — credentials likely not configured "
-                    f"(set GOOGLE_APPLICATION_CREDENTIALS or run 'gcloud auth application-default login'): {exc}"
+                    f"Google Cloud TTS client failed to initialise: {exc}"
                 ) from exc
         return self._client
