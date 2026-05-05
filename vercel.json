@@ -1,0 +1,16 @@
+{
+    "rewrites": [
+        { "source": "/api/(.*)", "destination": "https://counter-gules-seven.vercel.app/api/$1" }
+    ],
+    "experimentalServices": {
+        "frontend": {
+            "entrypoint": "frontend",
+            "routePrefix": "/",
+            "framework": "vite"
+        },
+        "backend": {
+            "entrypoint": "backend",
+            "routePrefix": "/_/backend"
+        }
+    }
+}

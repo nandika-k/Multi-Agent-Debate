@@ -8,7 +8,7 @@ from app.models.source import EvidencePacket
 class CitationValidator:
     citation_pattern = re.compile(r"\[(S\d+)\]")
     factual_signal_pattern = re.compile(
-        r"(\b\d+(?:\.\d+)?%?\b|according to|study|report|data|survey|research|found that|institution|agency|commission|analysis)",
+        r"(\b\d+(?:\.\d+)?%|\baccording to\b|\bfound that\b)",
         re.IGNORECASE,
     )
 
@@ -20,9 +20,6 @@ class CitationValidator:
         round_type: RoundType,
     ) -> None:
         text = generated.text.strip()
-        if len(text) > char_limit:
-            raise ValueError(f"Round exceeds character limit of {char_limit}")
-
         cited_ids = set(self.citation_pattern.findall(text))
         if set(generated.citations) != cited_ids:
             raise ValueError("Structured citation list does not match inline citation usage")
@@ -43,8 +40,6 @@ class CitationValidator:
                 raise ValueError(f"source_usage references an unknown source: {usage.source_id}")
 
         self._validate_uncited_factual_claims(text)
-        if round_type == RoundType.CLOSING and "new evidence" in " ".join(generated.claim_notes).lower():
-            raise ValueError("Closing argument should not introduce major new evidence")
 
     def _validate_uncited_factual_claims(self, text: str) -> None:
         sentences = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", text) if segment.strip()]

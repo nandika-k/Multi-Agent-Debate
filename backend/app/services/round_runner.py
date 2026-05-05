@@ -37,11 +37,17 @@ class RoundRunner:
         if on_round_completed:
             on_round_completed(transcript[-1])
 
-        for round_type in (RoundType.CROSSFIRE_QUESTIONS, RoundType.CROSSFIRE_ANSWERS):
-            entries = self._generate_parallel_entries(round_type, resolution, packets, source_index, list(transcript), on_round_started)
-            transcript.extend(entries)
-            if on_round_completed:
-                for entry in entries:
+        for side_ask, side_answer in (
+            (DebateSide.PRO, DebateSide.CON),
+            (DebateSide.CON, DebateSide.PRO),
+        ):
+            for side, round_type in (
+                (side_ask, RoundType.CROSSFIRE_QUESTIONS),
+                (side_answer, RoundType.CROSSFIRE_ANSWERS),
+            ):
+                entry = self._generate_entry(side, round_type, resolution, packets, source_index, list(transcript), on_round_started)
+                transcript.append(entry)
+                if on_round_completed:
                     on_round_completed(entry)
 
         for side, round_type in (

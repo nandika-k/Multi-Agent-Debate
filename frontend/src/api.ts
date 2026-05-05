@@ -1,80 +1,71 @@
 import type {
-  DebateDetailResponse,
-  DebateSide,
   DebateSummary,
+  DebateDetailResponse,
   SourceDetailResponse,
-} from "./types";
+  DebateSide,
+} from './types'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+const BASE = '/api/debates'
 
-function buildApiUrl(path: string): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  if (/^https?:\/\//.test(API_BASE)) {
-    return `${API_BASE}${normalizedPath}`;
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`${res.status}: ${text}`)
   }
-  return `${API_BASE}${normalizedPath}`;
+  return res.json() as Promise<T>
 }
 
-async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(buildApiUrl(path), {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    let message = `Request failed with status ${response.status}`;
-    try {
-      const body = (await response.json()) as { detail?: string };
-      if (body.detail) {
-        message = body.detail;
-      }
-    } catch {
-      // Ignore JSON parsing errors and fall back to the status message.
-    }
-    throw new Error(message);
-  }
-
-  return (await response.json()) as T;
-}
-
-export function createDebate(topic: string): Promise<DebateSummary> {
-  return apiRequest<DebateSummary>("/debates", {
-    method: "POST",
+export async function createDebate(topic: string): Promise<DebateSummary> {
+  const res = await fetch(BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ topic }),
-  });
+  })
+  return json<DebateSummary>(res)
 }
 
-export function getDebate(debateId: string): Promise<DebateDetailResponse> {
-  return apiRequest<DebateDetailResponse>(`/debates/${debateId}`);
+export async function getDebate(debateId: string): Promise<DebateDetailResponse> {
+  const res = await fetch(`${BASE}/${debateId}`)
+  return json<DebateDetailResponse>(res)
 }
 
-export function confirmResolution(debateId: string, resolution: string): Promise<DebateSummary> {
-  return apiRequest<DebateSummary>(`/debates/${debateId}/confirm-resolution`, {
-    method: "POST",
+export async function confirmResolution(
+  debateId: string,
+  resolution: string,
+): Promise<DebateSummary> {
+  const res = await fetch(`${BASE}/${debateId}/confirm-resolution`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ resolution }),
-  });
+  })
+  return json<DebateSummary>(res)
 }
 
-export function startDebate(debateId: string): Promise<DebateSummary> {
-  return apiRequest<DebateSummary>(`/debates/${debateId}/start`, {
-    method: "POST",
-  });
+export async function startDebate(debateId: string): Promise<DebateSummary> {
+  const res = await fetch(`${BASE}/${debateId}/start`, { method: 'POST' })
+  return json<DebateSummary>(res)
 }
 
-export function pickWinner(debateId: string, winnerSide: DebateSide): Promise<DebateSummary> {
-  return apiRequest<DebateSummary>(`/debates/${debateId}/winner`, {
-    method: "POST",
-    body: JSON.stringify({ winner_side: winnerSide }),
-  });
+export async function pickWinner(
+  debateId: string,
+  winner_side: DebateSide,
+): Promise<DebateSummary> {
+  const res = await fetch(`${BASE}/${debateId}/winner`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ winner_side }),
+  })
+  return json<DebateSummary>(res)
 }
 
-export function getSourceDetail(debateId: string, sourceId: string): Promise<SourceDetailResponse> {
-  return apiRequest<SourceDetailResponse>(`/debates/${debateId}/sources/${sourceId}`);
+export async function getSourceDetail(
+  debateId: string,
+  sourceId: string,
+): Promise<SourceDetailResponse> {
+  const res = await fetch(`${BASE}/${debateId}/sources/${sourceId}`)
+  return json<SourceDetailResponse>(res)
 }
 
-export function openDebateStream(debateId: string): EventSource {
-  return new EventSource(buildApiUrl(`/debates/${debateId}/stream`));
+export function getAudioUrl(debateId: string, entryId: string): string {
+  return `${BASE}/${debateId}/transcript/${entryId}/audio`
 }

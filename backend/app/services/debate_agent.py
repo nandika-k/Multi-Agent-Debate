@@ -1,13 +1,13 @@
-﻿from app.core.settings import settings
+import json
+
+from groq import Groq
+
+from app.core.settings import settings
 from app.models.common import DebateSide, RoundType
 from app.models.generation import GeneratedRound, SourceUsage
 from app.models.source import SourceCard, EvidencePacket
 from app.models.transcript import TranscriptEntry
-
-try:
-    from openai import OpenAI
-except ImportError:  # pragma: no cover - handled in runtime dependency setup
-    OpenAI = None
+from app.services.gemini_fallback import build_gemini_client, extract_json_payload
 
 
 def get_character_limits() -> dict[RoundType, int]:
@@ -16,7 +16,8 @@ def get_character_limits() -> dict[RoundType, int]:
 
 class DebateAgent:
     def __init__(self) -> None:
-        self.client = None
+        self._groq_client = None
+        self._gemini_client = None
 
     def generate_round(
         self,
@@ -31,48 +32,122 @@ class DebateAgent:
         if not settings.enable_live_generation:
             return self._stub_round(side, round_type, resolution, packet_sources)
 
-        client = self._get_client()
-        response = client.responses.parse(
-            model=settings.openai_model,
-            input=[
-                {
-                    "role": "system",
-                    "content": [{"type": "input_text", "text": self._system_prompt(round_type)}],
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": self._user_prompt(
-                                side=side,
-                                round_type=round_type,
-                                resolution=resolution,
-                                packet=packet,
-                                packet_sources=packet_sources,
-                                transcript=transcript,
-                                validation_feedback=validation_feedback,
-                            ),
-                        }
-                    ],
-                },
-            ],
-            text_format=GeneratedRound,
-        )
-        parsed = response.output_parsed
-        if parsed is None:
-            raise ValueError("OpenAI returned no structured round output")
-        return parsed
+        char_limit = get_character_limits()[round_type]
+        schema = GeneratedRound.model_json_schema()
+        schema["properties"]["text"]["maxLength"] = char_limit
+        if settings.groq_api_key:
+            try:
+                return self._generate_round_with_groq(
+                    side=side,
+                    round_type=round_type,
+                    resolution=resolution,
+                    packet=packet,
+                    packet_sources=packet_sources,
+                    transcript=transcript,
+                    validation_feedback=validation_feedback,
+                    schema=schema,
+                    char_limit=char_limit,
+                )
+            except Exception:
+                if not settings.google_api_key:
+                    raise
 
-    def _get_client(self):
-        if self.client is not None:
-            return self.client
-        if OpenAI is None:
-            raise RuntimeError("openai package is required when live generation is enabled")
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is not configured")
-        self.client = OpenAI(api_key=settings.openai_api_key)
-        return self.client
+        if settings.google_api_key:
+            return self._generate_round_with_gemini(
+                side=side,
+                round_type=round_type,
+                resolution=resolution,
+                packet=packet,
+                packet_sources=packet_sources,
+                transcript=transcript,
+                validation_feedback=validation_feedback,
+                schema=schema,
+                char_limit=char_limit,
+            )
+
+        raise ValueError("No live generation provider is configured")
+
+    def _get_groq_client(self) -> Groq:
+        if self._groq_client is not None:
+            return self._groq_client
+        if not settings.groq_api_key:
+            raise ValueError("GROQ_API_KEY is not configured")
+        self._groq_client = Groq(api_key=settings.groq_api_key)
+        return self._groq_client
+
+    def _get_gemini_client(self):
+        if self._gemini_client is not None:
+            return self._gemini_client
+        if not settings.google_api_key:
+            raise ValueError("GOOGLE_API_KEY is not configured")
+        self._gemini_client = build_gemini_client(settings.google_api_key)
+        return self._gemini_client
+
+    def _generate_round_with_groq(
+        self,
+        side: DebateSide,
+        round_type: RoundType,
+        resolution: str,
+        packet: EvidencePacket,
+        packet_sources: list[SourceCard],
+        transcript: list[TranscriptEntry],
+        validation_feedback: str | None,
+        schema: dict,
+        char_limit: int,
+    ) -> GeneratedRound:
+        client = self._get_groq_client()
+        response = client.chat.completions.create(
+            model=settings.groq_model,
+            max_tokens=char_limit // 4 + 350,
+            messages=[
+                {"role": "system", "content": self._system_prompt(round_type)},
+                {"role": "user", "content": self._user_prompt(
+                    side=side,
+                    round_type=round_type,
+                    resolution=resolution,
+                    packet=packet,
+                    packet_sources=packet_sources,
+                    transcript=transcript,
+                    validation_feedback=validation_feedback,
+                )},
+            ],
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "generate_round",
+                    "description": "Output the structured debate round.",
+                    "parameters": schema,
+                },
+            }],
+            tool_choice={"type": "function", "function": {"name": "generate_round"}},
+        )
+        args = response.choices[0].message.tool_calls[0].function.arguments
+        return GeneratedRound.model_validate_json(args)
+
+    def _generate_round_with_gemini(
+        self,
+        side: DebateSide,
+        round_type: RoundType,
+        resolution: str,
+        packet: EvidencePacket,
+        packet_sources: list[SourceCard],
+        transcript: list[TranscriptEntry],
+        validation_feedback: str | None,
+        schema: dict,
+        char_limit: int,
+    ) -> GeneratedRound:
+        client = self._get_gemini_client()
+        prompt = (
+            f"{self._system_prompt(round_type)}\n\n"
+            f"{self._user_prompt(side, round_type, resolution, packet, packet_sources, transcript, validation_feedback)}\n\n"
+            f"Return only a JSON object that matches this schema: {json.dumps(schema)}\n"
+            f"Keep text within {char_limit} characters."
+        )
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+        )
+        return GeneratedRound.model_validate_json(extract_json_payload(response.text))
 
     def _stub_round(
         self,
@@ -106,15 +181,15 @@ class DebateAgent:
         round_rules = {
             RoundType.OPENING: "Build a clear case and cite factual claims.",
             RoundType.CROSSFIRE_QUESTIONS: "Ask concise clarifying questions only; do not deliver a speech.",
-            RoundType.CROSSFIRE_ANSWERS: "Answer the opponent directly and briefly.",
+            RoundType.CROSSFIRE_ANSWERS: "Answer the opponent's questions directly and briefly; cite at least one source from your packet inline using [S#] to back your answer.",
             RoundType.REBUTTAL: "Respond to the opponent's best claims and defend your own.",
-            RoundType.CLOSING: "Summarize the strongest supported points and avoid introducing major new evidence.",
+            RoundType.CLOSING: "Summarize the strongest supported points; cite the key sources inline using [S#]; do not make new factual claims beyond what was already argued.",
         }
         return (
             "You are one side of a formal debate. "
             "Use only the provided evidence packet for factual claims. "
             "Never invent facts, studies, quotes, dates, or institutions. "
-            "Return structured JSON with fields: text, citations, claim_notes, source_usage. "
+            "Call the generate_round function with fields: text, citations, claim_notes, source_usage. "
             "Every factual claim in text must include inline citations like [S1] or [S1][S2]. "
             "The citations field must list only source IDs actually used inline. "
             f"Round-specific rule: {round_rules[round_type]}"
@@ -157,5 +232,5 @@ class DebateAgent:
             f"Private evidence packet:\n{source_packet}\n\n"
             f"Public transcript so far:\n{transcript_text}\n"
             f"{retry_note}\n"
-            "Return only the structured output. Keep it debate-style, concise, and citation-disciplined."
+            "Call generate_round with debate-style, concise, citation-disciplined output."
         )

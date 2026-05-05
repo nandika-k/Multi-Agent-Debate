@@ -1,84 +1,81 @@
-import { formatStatus } from "../formatters";
-import type { DebateScope, DebateSummary } from "../types";
+import { useState } from 'react'
+import { confirmResolution, startDebate } from '../api'
+import type { DebateSummary } from '../types'
 
-interface ResolutionEditorProps {
-  debate: DebateSummary;
-  scope: DebateScope | null;
-  resolution: string;
-  busyAction: string | null;
-  onResolutionChange: (value: string) => void;
-  onConfirm: () => void;
-  onStart: () => void;
+interface Props {
+  debate: DebateSummary
+  onConfirmed: (debate: DebateSummary) => void
+  onCancel: () => void
 }
 
-function buildScopeItems(scope: DebateScope | null): string[] {
-  if (!scope) {
-    return [];
+export function ResolutionEditor({ debate, onConfirmed, onCancel }: Props) {
+  const [resolution, setResolution] = useState(debate.resolution_draft)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleConfirm() {
+    const trimmed = resolution.trim()
+    if (!trimmed) return
+
+    setLoading(true)
+    setError(null)
+    try {
+      await confirmResolution(debate.debate_id, trimmed)
+      const started = await startDebate(debate.debate_id)
+      onConfirmed(started)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  return [
-    scope.jurisdiction ? `Jurisdiction: ${scope.jurisdiction}` : null,
-    scope.timeframe ? `Timeframe: ${scope.timeframe}` : null,
-    scope.target_population ? `Population: ${scope.target_population}` : null,
-    ...scope.definitions.map((definition) => `Definition: ${definition}`),
-  ].filter((item): item is string => Boolean(item));
-}
-
-export function ResolutionEditor({
-  debate,
-  scope,
-  resolution,
-  busyAction,
-  onResolutionChange,
-  onConfirm,
-  onStart,
-}: ResolutionEditorProps) {
-  const scopeItems = buildScopeItems(scope);
-  const canStart = debate.status === "ready";
-
   return (
-    <section className="panel resolution-panel">
-      <div className="panel-heading">
-        <span className="eyebrow">Resolution workshop</span>
-        <h2>Lock the framing before the agents begin.</h2>
-        <p>{formatStatus(debate.status)}</p>
-      </div>
-
-      <label className="field">
-        <span>Final resolution</span>
-        <textarea
-          value={resolution}
-          rows={6}
-          onChange={(event) => onResolutionChange(event.target.value)}
-        />
-      </label>
-
-      {scopeItems.length > 0 ? (
-        <div className="scope-grid" aria-label="Debate scope">
-          {scopeItems.map((item) => (
-            <span className="scope-pill" key={item}>
-              {item}
-            </span>
-          ))}
+    <div className="resolution-editor">
+      <div className="resolution-card">
+        <div className="resolution-card-header">
+          <span style={{ fontSize: 28 }}>📋</span>
+          <h2 className="resolution-card-title">RESOLUTION REVIEW</h2>
         </div>
-      ) : null}
 
-      <div className="resolution-actions">
-        <button
-          className="secondary-button"
-          disabled={busyAction === "confirm" || !resolution.trim()}
-          onClick={onConfirm}
-        >
-          {busyAction === "confirm" ? "Confirming..." : "Confirm resolution"}
-        </button>
-        <button
-          className="primary-button"
-          disabled={!canStart || busyAction === "start"}
-          onClick={onStart}
-        >
-          {busyAction === "start" ? "Launching..." : "Start debate"}
-        </button>
+        <div>
+          <div className="resolution-label">Original Topic</div>
+          <div className="resolution-topic-display">{debate.topic_raw}</div>
+        </div>
+
+        <div>
+          <div className="resolution-label">Formal Resolution</div>
+          <textarea
+            className="resolution-textarea"
+            value={resolution}
+            onChange={e => setResolution(e.target.value)}
+            disabled={loading}
+            rows={4}
+            placeholder="Edit the resolution…"
+          />
+          <div className="resolution-hint">
+            <span>✏️</span>
+            <span>The AI drafted this resolution from your topic. Edit it or accept as-is.</span>
+          </div>
+        </div>
+
+        {error && (
+          <div className="composer-error">⚠️ {error}</div>
+        )}
+
+        <div className="resolution-actions">
+          <button className="btn-secondary" onClick={onCancel} disabled={loading}>
+            ← BACK
+          </button>
+          <button
+            className="btn-confirm"
+            onClick={() => void handleConfirm()}
+            disabled={loading || !resolution.trim()}
+          >
+            {loading ? '⏳ STARTING…' : '🥊 START DEBATE'}
+          </button>
+        </div>
       </div>
-    </section>
-  );
+    </div>
+  )
 }
