@@ -62,12 +62,12 @@ class RetrievalService:
         )
 
     def search_documents(self, resolution: str, target_max: int) -> list[RetrievedDocument]:
-        trusted_results = self._search_queries(self._trusted_queries(resolution), resolution, trusted_only=True)
-        broad_results: list[RetrievedDocument] = []
-        if len(trusted_results) < target_max:
-            broad_results = self._search_queries(self._broad_queries(resolution), resolution, trusted_only=False)
+        broad_results = self._search_queries(self._broad_queries(resolution), resolution, trusted_only=False)
+        trusted_results: list[RetrievedDocument] = []
+        if len(broad_results) < target_max:
+            trusted_results = self._search_queries(self._trusted_queries(resolution), resolution, trusted_only=True)
 
-        combined = self._dedupe_documents([*trusted_results, *broad_results])
+        combined = self._dedupe_documents([*broad_results, *trusted_results])
         ranked = sorted(combined, key=lambda document: document.weighted_score, reverse=True)
         return ranked[:target_max]
 
@@ -145,11 +145,15 @@ class RetrievalService:
 
     def _trusted_queries(self, resolution: str) -> list[str]:
         trimmed = resolution.replace("Resolved:", "").strip()
-        queries = []
-        for domain in self.trusted_domains[:6]:
-            if "." in domain:
-                queries.append(f'site:{domain} "{trimmed}"')
-        return queries
+        publishers = " OR ".join(
+            domain.split(".")[0]
+            for domain in self.trusted_domains[:6]
+            if "." in domain
+        )
+        return [
+            f'"{trimmed}" ({publishers})',
+            f'"{trimmed}" report study evidence',
+        ]
 
     def _broad_queries(self, resolution: str) -> list[str]:
         trimmed = resolution.replace("Resolved:", "").strip()
