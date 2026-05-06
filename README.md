@@ -96,12 +96,13 @@ Open `http://localhost:5173` in your browser.
 
 ## Environment Variables
 
-All backend config lives in `backend/.env`. The only required one is an API key.
+All backend config lives in `backend/.env`.
 
 | Variable | Default | Description |
 |---|---|---|
 | `GROQ_API_KEY` | - | Groq API key (primary model provider) |
 | `GOOGLE_API_KEY` | - | Google Gemini API key (required fallback when Groq is unavailable) |
+| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | - | GCP service account JSON for text-to-speech |
 | `DEBATE_GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model to use |
 | `DEBATE_ENABLE_LIVE_GENERATION` | `true` | Toggle AI generation |
 | `DEBATE_ENABLE_LIVE_RETRIEVAL` | `true` | Toggle web search for evidence |
