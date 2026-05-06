@@ -1,41 +1,140 @@
 # Multi-Agent Debate
 
-This project now has a FastAPI backend in [backend](C:/Users/nkarn/Code/Classes/CS485_ThrivingInTheAgeOfAI/Multi_Agent_Debate/backend) and a Vite + React frontend in [frontend](C:/Users/nkarn/Code/Classes/CS485_ThrivingInTheAgeOfAI/Multi_Agent_Debate/frontend).
+A debate simulation platform where AI agents argue both sides of a topic. You give it a topic, it normalizes it into a formal resolution, researches evidence from the web, then runs a full structured debate (opening, crossfire, rebuttal, closing) with real-time streaming to the frontend.
 
-## Local Development
+The backend is FastAPI + SQLite, the frontend is Vite + React + TypeScript.
 
-1. Set up the backend:
+## Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- A Groq API key (free at [console.groq.com](https://console.groq.com))
+- A Google Gemini API key (required as a fallback when Groq is unavailable)
+
+## Setup
+
+### 1. Clone the repo
 
 ```bash
-backend\venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+git clone <repo-url>
+cd Multi_Agent_Debate
 ```
 
-2. Start the backend from `backend/`:
+### 2. Set up the backend
+
+Create a virtual environment and install dependencies from `backend/`:
 
 ```bash
-venv\Scripts\python.exe -m uvicorn app.main:app --reload
+cd backend
+python -m venv venv
 ```
 
-3. Install the frontend dependencies from `frontend/`:
+On Windows:
+```bash
+venv\Scripts\pip install -r requirements.txt
+```
+
+On Mac/Linux:
+```bash
+venv/bin/pip install -r requirements.txt
+```
+
+Copy the example env file and fill in your API key:
 
 ```bash
+cp .env.example .env
+```
+
+Edit `backend/.env`:
+```
+GROQ_API_KEY=your_groq_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+DEBATE_ENABLE_LIVE_GENERATION=true
+DEBATE_ENABLE_LIVE_RETRIEVAL=true
+```
+
+Both keys are required. Groq is the primary model provider and Gemini is the fallback when Groq is unavailable.
+
+### 3. Set up the frontend
+
+From `frontend/`:
+
+```bash
+cd frontend
 npm install
 ```
 
-4. Start the frontend dev server from `frontend/`:
+## Running Locally
+
+You need both the backend and frontend running at the same time.
+
+**Start the backend** from `backend/`:
+
+On Windows:
+```bash
+venv\Scripts\python -m uvicorn app.main:app --reload
+```
+
+On Mac/Linux:
+```bash
+venv/bin/python -m uvicorn app.main:app --reload
+```
+
+The backend runs at `http://localhost:8000`. The SQLite database gets created automatically on first run.
+
+**Start the frontend** from `frontend/`:
 
 ```bash
 npm run dev
 ```
 
-The frontend proxies `/api` requests to `http://127.0.0.1:8000` during development. To point it at another backend, set `VITE_API_BASE_URL`.
+The frontend runs at `http://localhost:5173` and proxies `/api` requests to the backend automatically.
+
+Open `http://localhost:5173` in your browser.
+
+## Environment Variables
+
+All backend config lives in `backend/.env`. The only required one is an API key.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GROQ_API_KEY` | - | Groq API key (primary model provider) |
+| `GOOGLE_API_KEY` | - | Google Gemini API key (required fallback when Groq is unavailable) |
+| `DEBATE_GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model to use |
+| `DEBATE_ENABLE_LIVE_GENERATION` | `true` | Toggle AI generation |
+| `DEBATE_ENABLE_LIVE_RETRIEVAL` | `true` | Toggle web search for evidence |
+| `DEBATE_ENABLE_TTS` | `true` | Toggle text-to-speech |
+
+For the frontend, set `VITE_API_BASE_URL` in `frontend/.env` if you want to point it at a different backend (e.g. the deployed one on Render).
 
 ## Frontend Commands
 
 From `frontend/`:
 
 ```bash
-npm run dev
-npm run test:run
-npm run build
+npm run dev        # start dev server
+npm run build      # build for production
+npm run preview    # preview the production build
+```
+
+## Project Structure
+
+```
+Multi_Agent_Debate/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI app
+│   │   ├── api/debates.py       # API routes
+│   │   ├── services/            # debate logic, research, TTS
+│   │   ├── models/              # Pydantic models
+│   │   └── db/repository.py     # SQLite layer
+│   ├── .env.example
+│   └── requirements.txt
+└── frontend/
+    ├── src/
+    │   ├── App.tsx
+    │   ├── api.ts               # backend client
+    │   ├── useDebateStream.ts   # SSE hook
+    │   └── components/
+    └── package.json
 ```
