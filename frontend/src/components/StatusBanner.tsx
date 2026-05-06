@@ -33,7 +33,7 @@ export function StatusBanner({
   onToggleVoiceReading,
 }: Props) {
   const statusClass = status ? getStatusClass(status) : ''
-  const statusLabel = status ? STATUS_LABELS[status] : 'DEBATE ARENA'
+  const statusLabel = status ? STATUS_LABELS[status] : 'COUNTER'
 
   return (
     <header className="status-banner">

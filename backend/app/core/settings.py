@@ -8,7 +8,7 @@ from app.models.common import RoundType
 
 
 class Settings(BaseSettings):
-    app_name: str = "Multi-Agent Debate Backend"
+    app_name: str = "Counter"
     data_dir: Path = Path(os.environ.get("RENDER_PROJECT_DIR", "/tmp")) / "debate_data"
     db_filename: str = "debates.db"
     groq_api_key: str | None = Field(

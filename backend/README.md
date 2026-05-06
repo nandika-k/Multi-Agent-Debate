@@ -1,4 +1,4 @@
-# Multi-Agent Debate Backend
+# Counter Backend
 
 ## Setup
 

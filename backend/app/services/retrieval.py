@@ -68,7 +68,8 @@ class RetrievalService:
             trusted_results = self._search_queries(self._trusted_queries(resolution), resolution, trusted_only=True)
 
         combined = self._dedupe_documents([*broad_results, *trusted_results])
-        ranked = sorted(combined, key=lambda document: document.weighted_score, reverse=True)
+        relevant = [d for d in combined if d.relevance_score >= self._MIN_RELEVANCE]
+        ranked = sorted(relevant, key=lambda document: document.weighted_score, reverse=True)
         return ranked[:target_max]
 
     def _search_queries(self, queries: Iterable[str], resolution: str, trusted_only: bool) -> list[RetrievedDocument]:
@@ -143,24 +144,42 @@ class RetrievalService:
             recency_score=recency_score,
         )
 
-    def _trusted_queries(self, resolution: str) -> list[str]:
+    _QUERY_STOPWORDS: frozenset[str] = frozenset({
+        "resolved", "that", "the", "a", "an", "is", "are", "be", "been",
+        "should", "would", "will", "more", "than", "to", "of", "in", "on",
+        "and", "or", "not", "no", "its", "their", "our", "this", "these",
+        "does", "do", "has", "have", "had", "was", "were", "for", "with",
+        "from", "which", "when", "where", "what", "how", "why", "who",
+        "public", "society", "overall", "general", "today", "modern",
+    })
+
+    _MIN_RELEVANCE: float = 0.25
+
+    def _core_keywords(self, resolution: str) -> str:
         trimmed = resolution.replace("Resolved:", "").strip()
+        tokens = [w.strip(".,;:!?\"'()[]{}") for w in trimmed.split()]
+        keywords = [t for t in tokens if t.lower() not in self._QUERY_STOPWORDS and len(t) > 3]
+        return " ".join(keywords[:7])
+
+    def _trusted_queries(self, resolution: str) -> list[str]:
+        keywords = self._core_keywords(resolution)
         publishers = " OR ".join(
             domain.split(".")[0]
             for domain in self.trusted_domains[:6]
             if "." in domain
         )
         return [
-            f'"{trimmed}" ({publishers})',
-            f'"{trimmed}" report study evidence',
+            f"{keywords} ({publishers})",
+            f"{keywords} report study evidence",
         ]
 
     def _broad_queries(self, resolution: str) -> list[str]:
         trimmed = resolution.replace("Resolved:", "").strip()
+        keywords = self._core_keywords(resolution)
         return [
-            f'"{trimmed}" debate evidence',
-            f'"{trimmed}" research',
-            f'"{trimmed}" official report',
+            f"{keywords} research evidence",
+            f"{keywords} study",
+            f"{trimmed} debate",
         ]
 
     def _dedupe_documents(self, documents: list[RetrievedDocument]) -> list[RetrievedDocument]:

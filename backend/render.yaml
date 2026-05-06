@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: multi-agent-debate-backend
+    name: counter-backend
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt

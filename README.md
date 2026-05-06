@@ -1,4 +1,4 @@
-# Multi-Agent Debate
+# Counter
 
 A debate simulation platform where AI agents argue both sides of a topic. You give it a topic, it normalizes it into a formal resolution, researches evidence from the web, then runs a full structured debate (opening, crossfire, rebuttal, closing) with real-time streaming to the frontend.
 
@@ -17,7 +17,7 @@ The backend is FastAPI + SQLite, the frontend is Vite + React + TypeScript.
 
 ```bash
 git clone <repo-url>
-cd Multi_Agent_Debate
+cd Counter
 ```
 
 ### 2. Set up the backend
@@ -120,7 +120,7 @@ npm run preview    # preview the production build
 ## Project Structure
 
 ```
-Multi_Agent_Debate/
+Counter/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app

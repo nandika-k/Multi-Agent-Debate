@@ -59,10 +59,9 @@ export function TopicComposer({ onDebateCreated }: Props) {
       </div>
 
       <h1 className="composer-title">
-        <span className="word-debate">DEBATE</span>{' '}
-        <span className="word-arena">ARENA</span>
+        <span className="word-debate">COUNTER</span>
       </h1>
-      <p className="composer-subtitle">AI-Powered Multi-Agent Debate • Enter the Ring</p>
+      <p className="composer-subtitle">AI-Powered Debate • Enter the Ring</p>
 
       <form className="composer-form" onSubmit={e => void handleSubmit(e)}>
         <div className="composer-input-wrap">

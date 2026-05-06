@@ -15,7 +15,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="Multi-Agent Debate Backend",
+    title="Counter",
     version="0.2.0",
     lifespan=lifespan,
 )

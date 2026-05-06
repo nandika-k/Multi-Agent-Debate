@@ -1,7 +1,7 @@
 [project]
-name = "multi-agent-debate-backend"
+name = "counter-backend"
 version = "0.2.0"
-description = "Backend for a multi-agent debate simulator"
+description = "Backend for Counter"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
