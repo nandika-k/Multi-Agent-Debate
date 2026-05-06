@@ -4,6 +4,8 @@ A debate simulation platform where AI agents argue both sides of a topic. You gi
 
 The backend is FastAPI + SQLite, the frontend is Vite + React + TypeScript.
 
+**Live demo:** [counter-multi-agent-debate.vercel.app](https://counter-multi-agent-debate.vercel.app/)
+
 ## Prerequisites
 
 - Python 3.10+
